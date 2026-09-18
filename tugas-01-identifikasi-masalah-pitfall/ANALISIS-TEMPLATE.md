@@ -4,11 +4,12 @@
 
 | Nama | NIM | Kontribusi |
 |---|---|---|
-| [nama 1] | [nim] | [pitfall/bagian yang dikerjakan] |
-| [nama 2] | [nim] | [pitfall/bagian yang dikerjakan] |
-| [nama 3] | [nim] | [pitfall/bagian yang dikerjakan] |
+| [Didit Septa Putra] | [103072400071] | [The network is reliable] |
+| [Chaesar Pratama] | [103072400119] | [Latency is zero] |
+| [Alif Rifqi Pratama] | [103072400133] | [Arsitektur Monolitik] |
+| [Duarte Sebastian Napitupulu] | [103072400152] | [Single Point of Failure] |
 
-## Pitfall 1: [nama pitfall] — ditulis oleh [nama]
+## Pitfall 1: [network is reliable] — ditulis oleh [Didit]
 
 **Bukti di skenario:** [kutip/paraphrase bagian skenario]
 
@@ -22,15 +23,45 @@
 
 ---
 
-## Pitfall 2: [nama pitfall] — ditulis oleh [nama]
+## Pitfall 2: [Latency is zero] — ditulis oleh [Chaesar]
 
-(ulangi struktur di atas)
+**Bukti di skenario:** [kutip/paraphrase bagian skenario]
+
+**Kenapa ini keliru:** [penjelasan]
+
+**Dampak ke FoodGo:** [mekanisme kegagalan konkret]
+
+**Solusi desain awal:** [usulan solusi]
+
+**Trade-off:** [apa yang dikorbankan/risiko dari solusi ini]
 
 ---
 
-## Pitfall 3: [nama pitfall] — ditulis oleh [nama]
+## Pitfall 3: [Arsitektur Monolitik] — ditulis oleh [Alif]
 
-(ulangi struktur di atas)
+**Bukti di skenario:** [kutip/paraphrase bagian skenario]
+
+**Kenapa ini keliru:** [penjelasan]
+
+**Dampak ke FoodGo:** [mekanisme kegagalan konkret]
+
+**Solusi desain awal:** [usulan solusi]
+
+**Trade-off:** [apa yang dikorbankan/risiko dari solusi ini]
+
+---
+
+## Pitfall 4: [Single Point of Failure] — ditulis oleh [Sebastian]
+
+**Bukti di skenario:** [kutip/paraphrase bagian skenario]
+
+**Kenapa ini keliru:** [penjelasan]
+
+**Dampak ke FoodGo:** [mekanisme kegagalan konkret]
+
+**Solusi desain awal:** [usulan solusi]
+
+**Trade-off:** [apa yang dikorbankan/risiko dari solusi ini]
 
 ---
 
