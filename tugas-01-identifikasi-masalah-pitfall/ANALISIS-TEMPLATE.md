@@ -53,15 +53,15 @@
 
 ## Pitfall 4: [Single Point of Failure] — ditulis oleh [Sebastian]
 
-**Bukti di skenario:** [kutip/paraphrase bagian skenario]
+**Bukti di skenario:** [Saat trafik naik, satu server yang menangani semua modul (pesanan, pembayaran, notifikasi kurir) kewalahan]
 
-**Kenapa ini keliru:** [penjelasan]
+**Kenapa ini keliru:** [Karena semua beban operasi di tumpuk di satu sistem tanpa adanya controller atau backup]
 
-**Dampak ke FoodGo:** [mekanisme kegagalan konkret]
+**Dampak ke FoodGo:** [Respon dari server lambat, banyak timeout, atau bisa juga sampai server down total]
 
-**Solusi desain awal:** [usulan solusi]
+**Solusi desain awal:** [Scaling secara Horizontal dan Load Balancer]
 
-**Trade-off:** [apa yang dikorbankan/risiko dari solusi ini]
+**Trade-off:** [Infrastruktur jauh lebih mahal dan manajemen datanya lebih rumit]
 
 ---
 

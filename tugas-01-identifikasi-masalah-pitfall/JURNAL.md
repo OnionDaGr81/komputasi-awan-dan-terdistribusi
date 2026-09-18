@@ -19,4 +19,4 @@
 
 | Tanggal | Tool AI | Prompt yang diberikan | Ringkasan saran/ide AI | Bagaimana diolah jadi tulisan/kode sendiri |
 |---|---|---|---|---|
-| ... | ... | ... | ... | ... |
+| 18 September | Gemini | "Halo! Tolong jelaskan tugas ini dong, saya masih kurang ngerti huhu." | "Kumpulkan kelompokmu, baca ulang skenario FoodGo bersama-sama, lalu langsung booking siapa mau bahas masalah jaringan (network), siapa mau bahas masalah timeout, dan siapa mau bahas masalah server monolitik." | Identifikasi 4 pitfall untuk tiap anggota kelompok |
