@@ -2,10 +2,10 @@
 
 > Isi jurnal ini selama proses diskusi berlangsung, bukan ditulis ulang rapi di akhir. Tulis dengan gaya bebas — poin diskusi, kebuntuan, perubahan pikiran.
 
-## [Tanggal diskusi 1]
-- Peserta: [nama-nama yang hadir]
-- Poin diskusi: ...
-- Perbedaan pendapat (jika ada): ...
+## [18 September diskusi 1]
+- Peserta: [ Bastian, Chaesar, Didit, ALif Rifki]
+- Poin diskusi: Mengusulkan solusi dan mendiskusikan trade off dari solusi yang di usulkan
+- Perbedaan pendapat (jika ada): -
 
 ## [Tanggal diskusi 2]
 - ...
