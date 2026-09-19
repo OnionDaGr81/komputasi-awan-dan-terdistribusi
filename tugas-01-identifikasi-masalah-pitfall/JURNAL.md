@@ -11,7 +11,7 @@
 - ...
 
 ## Review Silang
-- [Nama] mengomentari analisis [Nama lain]: ...
+- Sebastian mengomentari analisis Alif: Bagaimana solusi horizontal scaling saja mungkin tidak cukup, dan harus di barengi dengan load balancer agar lebih efektif.
 
 ## Log Penggunaan AI (Level 2)
 
