@@ -11,15 +11,15 @@
 
 ## Pitfall 1: [network is reliable] — ditulis oleh [Didit]
 
-**Bukti di skenario:** [ #network is always reliable, no need for retry ]
+**Bukti di skenario:** "#network is always reliable, no need for retry"
 
-**Kenapa ini keliru:** [Kita asumsikan jaringan dapat diandalkan adalah sebuah kekeliruan fatal, karena komunikasi via internet terutama ke gateaway pembayaran pihak ketiga atau koneksi antar proses pasti mengalami ketidak stabilan (fluktuasi), packet loss, atau terputus sesaat (network blip)]
+**Kenapa ini keliru:** Kita asumsikan jaringan dapat diandalkan adalah sebuah kekeliruan fatal, karena komunikasi via internet terutama ke gateaway pembayaran pihak ketiga atau koneksi antar proses pasti mengalami ketidak stabilan (fluktuasi), packet loss, atau terputus sesaat (network blip)
 
-**Dampak ke FoodGo:** [Saat pelanggan memesan makanan di jam makan siang, modul pesanan memanggil modul pembayaran. Jika koneksi jaringan mengalami gangguan sesaat saat pengiriman data, panggilan tersebut langsung gagal total. Pelanggan mengalami kegagalan transaksi, pesanan batal terbuat di sistem, dan restoran tidak menerima pesanan dapur. FoodGo kehilangan pendapatan dari transaksi tersebut hanya karena gangguan jaringan mikro yang sebenarnya bisa pulih dalam hitungan milidetik.]
+**Dampak ke FoodGo:** Saat pelanggan memesan makanan di jam makan siang, modul pesanan memanggil modul pembayaran. Jika koneksi jaringan mengalami gangguan sesaat saat pengiriman data, panggilan tersebut langsung gagal total. Pelanggan mengalami kegagalan transaksi, pesanan batal terbuat di sistem, dan restoran tidak menerima pesanan dapur. FoodGo kehilangan pendapatan dari transaksi tersebut hanya karena gangguan jaringan mikro yang sebenarnya bisa pulih dalam hitungan milidetik.
 
-**Solusi desain awal:** [Menerapkan mekanisme Retry dengan Exponential Backoff dan Jitter. Jika pemanggilan dari modul pesanan ke modul pembayaran gagal akibat koneksi terputus, sistem akan mencoba ulang otomatis dengan jeda bertahap (1s, 2s, 4s) ditambah acakan waktu (jitter) untuk mencegah bentrokan trafik.]
+**Solusi desain awal:** Menerapkan mekanisme Retry dengan Exponential Backoff dan Jitter. Jika pemanggilan dari modul pesanan ke modul pembayaran gagal akibat koneksi terputus, sistem akan mencoba ulang otomatis dengan jeda bertahap (1s, 2s, 4s) ditambah acakan waktu (jitter) untuk mencegah bentrokan trafik.
 
-**Trade-off:** [Menerapkan retry berisiko memicu Retry Storm. Jika modul pembayaran sebenarnya sedang lumpuh total saat promo besar, ribuan pesanan yang gagal lalu melakukan retry secara bersamaan justru akan membombardir saluran komunikasi internal FoodGo, memperparah kemacetan trafik jaringan, dan merubuhkan layanan lainnya.]
+**Trade-off:** Menerapkan retry berisiko memicu Retry Storm. Jika modul pembayaran sebenarnya sedang lumpuh total saat promo besar, ribuan pesanan yang gagal lalu melakukan retry secara bersamaan justru akan membombardir saluran komunikasi internal FoodGo, memperparah kemacetan trafik jaringan, dan merubuhkan layanan lainnya.
 
 ---
 
