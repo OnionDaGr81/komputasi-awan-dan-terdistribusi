@@ -20,6 +20,3 @@
 | Tanggal | Tool AI | Prompt yang diberikan | Ringkasan saran/ide AI | Bagaimana diolah jadi tulisan/kode sendiri |
 |---|---|---|---|---|
 | 18 September | Gemini | "Halo! Tolong jelaskan tugas ini dong, saya masih kurang ngerti huhu." | "Kumpulkan kelompokmu, baca ulang skenario FoodGo bersama-sama, lalu langsung booking siapa mau bahas masalah jaringan (network), siapa mau bahas masalah timeout, dan siapa mau bahas masalah server monolitik." | Identifikasi 4 pitfall untuk tiap anggota kelompok |
-(20 September 2026) Masalah 3 (Kategori Desain): Arsitektur Monolitik
-Fokus untuk anggota 3: Membedah kutipan tentang semua modul (pesanan, pembayaran, notifikasi) yang disatukan dalam "satu proses monolitik yang sama".
-buatkan saya bukti dari skenario nya, kenapa ini keliru, dampak ke food go, solusi desain awal, dan juga trade off nya
