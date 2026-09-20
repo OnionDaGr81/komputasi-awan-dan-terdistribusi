@@ -51,15 +51,37 @@
 
 ## Pitfall 3: [Arsitektur Monolitik] — ditulis oleh [Alif]
 
-**Bukti di skenario:** [kutip/paraphrase bagian skenario]
+**Bukti di skenario:** "Semua modul seperti pesanan, pembayaran, dan notifikasi disatukan dalam satu proses monolitik yang sama."
 
-**Kenapa ini keliru:** [penjelasan]
+**Kenapa ini keliru:** Arsitektur monolitik tidak selalu salah. Untuk sistem kecil, monolit justru bisa lebih sederhana. Namun, dalam konteks FoodGo yang memiliki fungsi seperti pemesanan, pembayaran, dan notifikasi, penyatuan seluruh fungsi menjadi satu proses dapat menjadi masalah ketika sistem berkembang.
 
-**Dampak ke FoodGo:** [mekanisme kegagalan konkret]
+**Dampak ke FoodGo:** 
+- Downtime lebih luas. Gangguan pada aplikasi utama dapat menyebabkan beberapa fitur ikut tidak tersedia.
+- Sulit dikembangkan. Developer harus berhati-hati ketika mengubah satu modul karena dapat memengaruhi modul lain.
+- Scalling tidak efisien. Seluruh aplikasi perlu ditingkatkan kapasitasnya meskipun hanya satu fungsi yang mengalami peningkatan beban.
+- Deployment lebih berisiko. Perubahan pada pembayaran misalnya harus melakukan deployment aplikasi utama.
+- Maintenance lebih sulit. Semakin besarkode aplikasi, semakin sulit memahami hubungan antar bagian.
+- Performa dapat terganggu. Proses berat pada satu modul dapat menggunakan resource yang juga dibutuhkan modul lain.
 
-**Solusi desain awal:** [usulan solusi]
+**Solusi desain awal:**
+Solusi yang dapat digunakan adalah memisahkan tanggung jawab setiap modul, tetapi tidak harus langsung membuat microservices yang sangat kompleks. Untuk tahap awal, FoodGo dapat menggunakan pendekatan modular monolith. Setiap modul memiliki tanggung jawab yang jelas dan sebisa mungkin tidak mencampurkan logika bisnisnya. Contoh:
+- Order Module: Membuat pesanan, mengubah status pesanan, melihat detail pesanan, mengelola status makanan.
+- Payment Module: Proses pembayaran, validasi pembayaran, status pembayaran, transaksi pembayaran.
+- Notification Module: Notifikasi pesanan, notifikasi pembayaran, notifikasi perubahan status.
 
-**Trade-off:** [apa yang dikorbankan/risiko dari solusi ini]
+**Trade-off:** 
+Jika kita menggunakan sistem Modular monolith maka resikonya:
+- Modul masih berada dalam satu aplikasi, sehingga kegagalan pada aplikasi utama masih dapat berdampak ke beberapa modul.
+- Scaling belum sepenuhnya independen karena aplikasi masih dideploy sebagai satu kesatuan.
+- Seiring sistem semakin besar, kode tetap berpotensi menjadi kompleks.
+- Membutuhkan disiplin tinggi agar batas antar-modul tetap terjaga.
+
+Jika kita menggunakan sistem Microservices maka resikonya:
+- Arsitektur menjadi lebih kompleks karena setiap service harus dikelola secara terpisah.
+- Membutuhkan infrastruktur tambahan seperti API gateway, message broker, monitoring, dan service discovery.
+- Komunikasi antar-service melalui jaringan dapat menimbulkan latency dan kegagalan komunikasi.
+- Debugging lebih sulit karena satu proses bisnis dapat melibatkan beberapa service.
+Deployment, monitoring, dan maintenance membutuhkan effort yang lebih besar.
 
 ---
 
