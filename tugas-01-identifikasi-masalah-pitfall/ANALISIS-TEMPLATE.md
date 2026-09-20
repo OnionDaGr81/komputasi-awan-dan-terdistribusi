@@ -31,7 +31,6 @@
 
 **Dampak ke FoodGo:**
 - Saat trafik naik pada jam makan siang atau pun promo, modul pembayaran melambat dan memyebabkan modul pesanan menunggu tanpa batas, thread jadi menumpuk karena tidak pernah dilepas.
-- Karena semua modul berjalan dalam satu proses monolitik yang sama tanpa isolasi, thread yang tersangkut menunggu pembayaran tetap terikat pada thread pool web server yang sama dan bukan berjalan di proses atau antrean terpisah. Akibatnya, yang habis bukan cuma "koneksi ke pembayaran", tapi thread pool itu sendiri, sehingga request pesanan dan notifikasi kurir yang sebenarnya tidak berkaitan dengan pembayaran pun ikut tidak kebagian thread.
 - Request dari pengguna jadi tertahan, sehingga mengakibatkan gejala "aplikasi lambat", request timeout" di sisi pengguna.
 - Hal ini berdampak pada server, server akan kehabisan resource sehingga menyebabkan harus direstart secara manual terus menerus.
 - Kegagalan pada satu modul jadi akar permasalahan ke seluruh sistem, bukan hanya mengganggu fitur pembayaran saja.
