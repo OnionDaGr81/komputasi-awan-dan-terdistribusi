@@ -69,7 +69,7 @@ Solusi yang dapat digunakan adalah memisahkan tanggung jawab setiap modul, tetap
 - Payment Module: Proses pembayaran, validasi pembayaran, status pembayaran, transaksi pembayaran.
 - Notification Module: Notifikasi pesanan, notifikasi pembayaran, notifikasi perubahan status.
 
-**Trade-off:** 
+**Trade-off:**
 Jika kita menggunakan sistem Modular monolith maka resikonya:
 - Modul masih berada dalam satu aplikasi, sehingga kegagalan pada aplikasi utama masih dapat berdampak ke beberapa modul.
 - Scaling belum sepenuhnya independen karena aplikasi masih dideploy sebagai satu kesatuan.
@@ -91,7 +91,7 @@ Deployment, monitoring, dan maintenance membutuhkan effort yang lebih besar.
 
 **Kenapa ini keliru:** Karena semua beban operasi di tumpuk di satu sistem tanpa adanya controller atau backup. Sistem juga tidak memiliki cara untuk membatasi dan manajemen resource, sehingga jika satu modul menghabiskan resource, modul lain juga akan berhenti. Sistem juga sayangnya tidak mengetahui batas kemampuannya sendiri, sehingga sistem akan memaksakan diri memproses request yang baru dan melebihi batas resource dan akhirnya crash total.
 
-**Dampak ke FoodGo:** Respon dari server lambat, banyak timeout, atau bisa juga sampai server down total.
+**Dampak ke FoodGo:** Karena hanya ada satu serverm ketika modul pembayaran menyedot seluruh CPU, fitur utama lain seperti pesanan dan notifikasi ikut mati total, ini membuat aplikasi lumpuh sepenuhnya dan servber harus di restart manual.
 
 **Solusi desain awal:** Scaling secara Horizontal dan Load Balancer.
 
@@ -101,4 +101,18 @@ Deployment, monitoring, dan maintenance membutuhkan effort yang lebih besar.
 
 ## Kesimpulan Kelompok
 
-[Ringkasan: jika FoodGo memperbaiki ketiga pitfall ini, apa arsitektur yang disarankan secara garis besar? Kaitkan dengan Tugas 2.]
+Berdasarkan analisis di atas, kegagalan sistem FoodGo saat jam sibhuk bukanlah disebabkan oleh satu faktor, melainkan kombinasi fatal antara kelemahan arsitektur dan asumsi kode yang keliru.
+
+Jika FoodGo ingin memperbaiki masalah ini secara menyeluruh, sistem tidak bisa hanya mengandalkan perbaikan hardware. Arsitektur yang kami sarankan secara garis besar adalah transisi menuju sistem terdistribusi yang tahan banting dengan langkah-lengkah terpadu:
+
+1. Di level aplikasi: melakukan refaktor dari monolitik murni menjadi modular agar setiap layanan (pesanan, pembayaran, notifikasi) memiliki batasan yang jelas.
+
+2. Di level jaringan: Menerapkan timeout, circuit breaker, dan retry dengan backoff agar aplikasi tdiak hang saat layanan pihak ketiga sedang bermasalah.
+
+3. Di level infrastruktur: Menerapkan scaling secara horizontal menggunakan load balancer untuk mendistribusi trafik, sehingga tidak ada lagi single point of failure.
+
+Untuk kaitan dengan tugas 2, kami telah mempelajari solusi yang lebih tepat untuk kedua faktor yang menyebabkan masalah.
+
+1. Untuk kelemahan arsitektur (Server monolitik & Single point of failure): Mengimplementasikan Service Oriented Architecture/SOA, dimana seiap modul dapat berdiri sendiri. Jadi, kalau modul kurir sedang deploy update, modul lainnya tidak akan terpengaruh.
+
+2. Untuk asumsi kode yang keliru: Mengimplementasikan sistem Publish-Subscribe, dimana modul modul tidak perlu menunggu respon dari modul lain, melainkan bisa menerima request sendiri secara asinknron.
