@@ -87,15 +87,15 @@ Deployment, monitoring, dan maintenance membutuhkan effort yang lebih besar.
 
 ## Pitfall 4: [Single Point of Failure] — ditulis oleh [Sebastian]
 
-**Bukti di skenario:** Saat trafik naik, satu server yang menangani semua modul (pesanan, pembayaran, notifikasi kurir) kewalahan.
+**Bukti di skenario:** Saat trafik naik, satu server yang menangani semua modul (pesanan, pembayaran, notifikasi kurir) kewalahan karena semuanya berjalan di satu proses monolitik.
 
 **Kenapa ini keliru:** Karena semua beban operasi di tumpuk di satu sistem tanpa adanya controller atau backup. Sistem juga tidak memiliki cara untuk membatasi dan manajemen resource, sehingga jika satu modul menghabiskan resource, modul lain juga akan berhenti. Sistem juga sayangnya tidak mengetahui batas kemampuannya sendiri, sehingga sistem akan memaksakan diri memproses request yang baru dan melebihi batas resource dan akhirnya crash total.
 
-**Dampak ke FoodGo:** Karena hanya ada satu serverm ketika modul pembayaran menyedot seluruh CPU, fitur utama lain seperti pesanan dan notifikasi ikut mati total, ini membuat aplikasi lumpuh sepenuhnya dan servber harus di restart manual.
+**Dampak ke FoodGo:** Karena tidak ada batasan sumber daya, ketika modul pembayaran menggunakan seluruh CPU, proses modul lainnya ikut mati. Akibatnya, pada jam makan siang atau ketika ada promo besar-besaran, seluruh operasional FoodGo lumpuh total, pesanan pelanggan gagal di proses, dan tim engineering harus membuang waktu melakukan restart server secara manual untuk memulihkan sistem.
 
-**Solusi desain awal:** Scaling secara Horizontal dan Load Balancer.
+**Solusi desain awal:** Solusi utamanya adalah scaling secara horizontal dipadukan dengan load balancer. Daripada menggunakan satu server raksasa, FoodGo harus menduplikasi aplikasi ke beberapa server/instans lebih kecil. Load balancer kemudian ditempatkan di depan sebagai pengatur lalu lintas jaringan, yang akan mendistribusikan request pengguna secara merata ke server-server tersebut. Jika satu server mati, load balancer akan otomatis mengalihkan traffic ke server lain yang masih sehat, sehingga menghilangkan single point of failure.
 
-**Trade-off:** Infrastruktur jauh lebih mahal dan manajemen datanya lebih rumit.
+**Trade-off:** Infrastruktur menjadi lebih mahal dan kompleks untuk dikelola. Selain itu, muncul tantangan manajemen session. Contohnya, jika user sedang memilih makanan di server A, lalu server A down dan load balancer memindahkan user itu ke server B, data keranjang belanjannya bisa hilang jika tidak ada arsitektur database atau cache terpusat yang membagikan data antar server.
 
 ---
 
