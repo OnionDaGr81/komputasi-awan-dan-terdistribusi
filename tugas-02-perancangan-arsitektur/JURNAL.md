@@ -1,8 +1,8 @@
 # Jurnal Proses — Tugas 2
 
-## [Tanggal]
-- Opsi arsitektur yang dipertimbangkan: ...
-- Kenapa akhirnya pilih [SOA/Pub-Sub]: ...
+## [25 September 2026]
+- Opsi arsitektur yang dipertimbangkan: SOA atau Pub=Sub? Akhirnya kita sepakat menggunakan kombinasi keduanya
+- Kenapa akhirnya pilih [SOA/Pub-Sub]: 
 - Revisi diagram (versi 1 → versi 2, apa yang berubah dan kenapa): ...
 
 ## Log Penggunaan AI (Level 2)
