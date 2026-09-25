@@ -36,38 +36,56 @@ graph LR
 
 Jawaban: 
 - Inisiasi Pesanan oleh Pelanggan
-Komunikasi: Pelanggan --> API Gateway
-Jenis Komunikasi: Sinkron (Request-Response / HTTP Request)
-Penjelasan: Pelanggan menekan tombol buat pesanan di aplikasi. Aplikasi mengirimkan HTTP Request: Buat Pesanan ke API Gateway sebagai gerbang masuk utama sistem.
+
+  Komunikasi: Pelanggan --> API Gateway
+
+  Jenis Komunikasi: Sinkron (Request-Response / HTTP Request)
+
+  Penjelasan: Pelanggan menekan tombol buat pesanan di aplikasi. Aplikasi mengirimkan HTTP Request: Buat Pesanan ke API Gateway sebagai gerbang masuk utama sistem.
 
 - Meneruskan Request ke Service Utama
-Komunikasi: API Gateway --> Service Pesanan
-Jenis Komunikasi: Sinkron (Request-Response)
-Penjelasan: API Gateway menerima request dari pelanggan, melakukan autentikasi/routing, dan langsung meneruskan request tersebut ke Service Pesanan.
+
+  Komunikasi: API Gateway --> Service Pesanan
+
+  Jenis Komunikasi: Sinkron (Request-Response)
+
+  Penjelasan: API Gateway menerima request dari pelanggan, melakukan autentikasi/routing, dan langsung meneruskan request tersebut ke Service Pesanan.
 
 - Pengecekan Stok Makanan
-Komunikasi: Service Pesanan $\rightleftarrows$ Service stock resto
-Jenis Komunikasi: Sinkron (Request-Response)
-Penjelasan:
+
+  Komunikasi: Service Pesanan $\rightleftarrows$ Service stock resto
+
+  Jenis Komunikasi: Sinkron (Request-Response)
+
+  Penjelasan:
   1. Service Pesanan mengirimkan permintaan sinkron (Mengirim request sinkron) ke Service stock resto untuk memverifikasi apakah menu yang dipesan masih tersedia.
   2. Service stock resto memeriksa database-nya dan mengembalikan balasan secara langsung (Stok aman)
 
 - Eksekusi Pembayaran
-Komunikasi: Service Pesanan $\rightleftarrows$ Service Pembayaran
-Jenis Komunikasi: Sinkron (Request-Response)
-Penjelasan:
+
+  Komunikasi: Service Pesanan $\rightleftarrows$ Service Pembayaran
+
+  Jenis Komunikasi: Sinkron (Request-Response)
+
+  Penjelasan:
   1. Setelah stok dikonfirmasi aman, Service Pesanan mengirimkan permintaan sinkron (Mengirim request sinkron) ke Service Pembayaran untuk memproses transaksi keuangan.
   2. Service Pembayaran memproses transaksi dan memberikan respons balik secara langsung bahwa transaksi berhasil (Pembayaran Sukses).
 
 - Penerbitan Event Pembayaran (Publish Event)
-Komunikasi: Service Pesanan --> Message Broker
-Jenis Komunikasi: Asinkron (Event-Driven / Publish)
-Penjelasan: Setelah transaksi dikonfirmasi sukses, Service Pesanan tidak memanggil modul lain secara langsung. Sebagai gantinya, Service Pesanan mempublikasikan sebuah pesan/event bernama [Publish event: OrderPaid] ke Message Broker. Setelah event terkirim, Service Pesanan dapat langsung menyelesaikan tugas utamanya tanpa perlu menunggu proses lain selesai.
+
+  Komunikasi: Service Pesanan --> Message Broker
+
+  Jenis Komunikasi: Asinkron (Event-Driven / Publish)
+
+  Penjelasan: Setelah transaksi dikonfirmasi sukses, Service Pesanan tidak memanggil modul lain secara langsung. Sebagai gantinya, Service Pesanan mempublikasikan sebuah pesan/event bernama [Publish event: OrderPaid] ke Message Broker. Setelah event terkirim, Service Pesanan dapat langsung menyelesaikan tugas utamanya tanpa perlu menunggu proses lain selesai.
 
 - Penyebaran Event ke Service Terkait (Fan-out / Subscribe)
-Komunikasi: Message Broker --> Service Kurir/Notifikasi & Service Resto
-Jenis Komunikasi: Asinkron (Event-Driven / Subscribe)
-Penjelasan: Message Broker secara independen menyalurkan pesan OrderPaid tersebut ke dua service pendengar (subscriber):
+
+  Komunikasi: Message Broker --> Service Kurir/Notifikasi & Service Resto
+
+  Jenis Komunikasi: Asinkron (Event-Driven / Subscribe)
+  
+  Penjelasan: Message Broker secara independen menyalurkan pesan OrderPaid tersebut ke dua service pendengar (subscriber):
   1. Service Kurir/Notifikasi: Menerima event (Menyalurkan event) untuk menjalankan pencarian kurir terdekat serta mengirimkan push notification status pengiriman ke pelanggan.
   2. Service Resto: Menerima event (Menyalurkan event) untuk memberi tahu aplikasi restoran agar pihak dapur segera menyiapkan makanan.
 
