@@ -89,7 +89,30 @@ Jawaban:
   1. Service Kurir/Notifikasi: Menerima event (Menyalurkan event) untuk menjalankan pencarian kurir terdekat serta mengirimkan push notification status pengiriman ke pelanggan.
   2. Service Resto: Menerima event (Menyalurkan event) untuk memberi tahu aplikasi restoran agar pihak dapur segera menyiapkan makanan.
 
-4. Analisis tertulis: kenapa gaya ini mengatasi masalah *coupling* dari Tugas 1, dan apa trade-off-nya (mis. Pub-Sub menambah kompleksitas debugging karena alur tidak linear).
+4. Analisis tertulis: kenapa gaya ini mengatasi masalah *coupling* dari Tugas 1, dan apa trade-off-nya (mis. Pub-Sub menambah kompleksitas debugging karena alur tidak linear). [Chaesar]
+Jawaban:
+
+- Alasan Kombinasi SOA dan Pub-Sub Mengatasi Masalah Coupling:
+
+  Pemisahan Service dan Independent Deployment (Peran SOA):
+  Pada sistem monolitik sebelumnya, semua modul menyatu dalam satu server sehingga jika ada update, seluruh aplikasi harus restart. Dengan SOA, modul dipecah menjadi layanan terpisah (Service Pesanan, Service stock resto, Service Pembayaran, Service Kurir/Notifikasi, dan Service Resto). Saat tim kurir atau tim resto melakukan deploy ulang pada modul mereka, modul transaksi utama seperti Service Pesanan dan Service Pembayaran tidak akan ikut ter-restart dan tetap bisa melayani pelanggan.
+
+  Komunikasi Asinkron yang Tidak Saling Mengunci (Peran Pub-Sub):
+  Setelah pembayaran berhasil, Service Pesanan tidak memanggil Service Kurir/Notifikasi atau Service Resto secara langsung, melainkan hanya menitipkan event OrderPaid ke Message Broker. Jika saat itu Service Kurir/Notifikasi sedang mati sementara karena baru di-deploy ulang oleh tim kurir, proses pemesanan di sisi pelanggan tidak akan ikut error. Pesan OrderPaid akan disimpan sementara di dalam antrean Message Broker dan langsung diteruskan begitu Service Kurir/Notifikasi aktif kembali.
+
+- Trade-off (Konsekuensi Teknis) yang Muncul:
+
+  Kompleksitas Debugging karena Alur Tidak Linear (Efek Pub-Sub):
+  Karena pengiriman event OrderPaid dari Message Broker ke Service Kurir/Notifikasi dan Service Resto berjalan secara asinkron, alur program menjadi lebih sulit dilacak. Jika terjadi bug—misalnya saldo pelanggan sudah terpotong di Service Pembayaran tetapi notifikasi pesanan tidak masuk ke aplikasi kurir—tim developer akan lebih sulit mencari letak kesalahannya dibandingkan pada aplikasi monolitik yang alurnya lurus di satu tempat.
+
+  Eventual Consistency:
+  Karena menggunakan perantara Message Broker, status pesanan yang sudah dibayar tidak langsung muncul detik itu juga di aplikasi resto maupun kurir. Akan ada sedikit jeda waktu sampai event OrderPaid selesai disalurkan dan diproses oleh masing-masing service penerima.
+
+  Network Latency pada Fase Sinkron (Efek SOA):
+  Pada fase pembuatan pesanan, Service Pesanan harus menghubungi Service stock resto dan Service Pembayaran melalui jaringan (request sinkron). Proses komunikasi antar-jaringan ini tentu membutuhkan waktu respon yang sedikit lebih lambat dibandingkan pemanggilan fungsi di dalam satu aplikasi monolitik yang sama.
+
+  Ketergantungan Baru pada API Gateway dan Message Broker:
+  Walaupun antar-modul sudah tidak saling mengunci, kini API Gateway dan Message Broker menjadi komponen yang sangat kritis. Jika Message Broker mengalami gangguan atau down, maka seluruh pengiriman notifikasi ke kurir dan restoran akan terhenti.
 
 ## Cara Membuat Diagram (Gratis, Cukup Laptop)
 
