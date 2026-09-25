@@ -31,7 +31,6 @@
 
 **Dampak ke FoodGo:**
 - Saat trafik naik pada jam makan siang atau pun promo, modul pembayaran melambat dan memyebabkan modul pesanan menunggu tanpa batas, thread jadi menumpuk karena tidak pernah dilepas.
-- Karena semua modul berjalan dalam satu proses monolitik yang sama tanpa isolasi, thread yang tersangkut menunggu pembayaran tetap terikat pada thread pool web server yang sama dan bukan berjalan di proses atau antrean terpisah. Akibatnya, yang habis bukan cuma "koneksi ke pembayaran", tapi thread pool itu sendiri, sehingga request pesanan dan notifikasi kurir yang sebenarnya tidak berkaitan dengan pembayaran pun ikut tidak kebagian thread.
 - Request dari pengguna jadi tertahan, sehingga mengakibatkan gejala "aplikasi lambat", request timeout" di sisi pengguna.
 - Hal ini berdampak pada server, server akan kehabisan resource sehingga menyebabkan harus direstart secara manual terus menerus.
 - Kegagalan pada satu modul jadi akar permasalahan ke seluruh sistem, bukan hanya mengganggu fitur pembayaran saja.
@@ -69,7 +68,7 @@ Solusi yang dapat digunakan adalah memisahkan tanggung jawab setiap modul, tetap
 - Payment Module: Proses pembayaran, validasi pembayaran, status pembayaran, transaksi pembayaran.
 - Notification Module: Notifikasi pesanan, notifikasi pembayaran, notifikasi perubahan status.
 
-**Trade-off:** 
+**Trade-off:**
 Jika kita menggunakan sistem Modular monolith maka resikonya:
 - Modul masih berada dalam satu aplikasi, sehingga kegagalan pada aplikasi utama masih dapat berdampak ke beberapa modul.
 - Scaling belum sepenuhnya independen karena aplikasi masih dideploy sebagai satu kesatuan.
@@ -87,18 +86,32 @@ Deployment, monitoring, dan maintenance membutuhkan effort yang lebih besar.
 
 ## Pitfall 4: [Single Point of Failure] — ditulis oleh [Sebastian]
 
-**Bukti di skenario:** Saat trafik naik, satu server yang menangani semua modul (pesanan, pembayaran, notifikasi kurir) kewalahan.
+**Bukti di skenario:** Saat trafik naik, satu server yang menangani semua modul (pesanan, pembayaran, notifikasi kurir) kewalahan karena semuanya berjalan di satu proses monolitik.
 
 **Kenapa ini keliru:** Karena semua beban operasi di tumpuk di satu sistem tanpa adanya controller atau backup. Sistem juga tidak memiliki cara untuk membatasi dan manajemen resource, sehingga jika satu modul menghabiskan resource, modul lain juga akan berhenti. Sistem juga sayangnya tidak mengetahui batas kemampuannya sendiri, sehingga sistem akan memaksakan diri memproses request yang baru dan melebihi batas resource dan akhirnya crash total.
 
-**Dampak ke FoodGo:** Respon dari server lambat, banyak timeout, atau bisa juga sampai server down total.
+**Dampak ke FoodGo:** Karena tidak ada batasan sumber daya, ketika modul pembayaran menggunakan seluruh CPU, proses modul lainnya ikut mati. Akibatnya, pada jam makan siang atau ketika ada promo besar-besaran, seluruh operasional FoodGo lumpuh total, pesanan pelanggan gagal di proses, dan tim engineering harus membuang waktu melakukan restart server secara manual untuk memulihkan sistem.
 
-**Solusi desain awal:** Scaling secara Horizontal dan Load Balancer.
+**Solusi desain awal:** Solusi utamanya adalah scaling secara horizontal dipadukan dengan load balancer. Daripada menggunakan satu server raksasa, FoodGo harus menduplikasi aplikasi ke beberapa server/instans lebih kecil. Load balancer kemudian ditempatkan di depan sebagai pengatur lalu lintas jaringan, yang akan mendistribusikan request pengguna secara merata ke server-server tersebut. Jika satu server mati, load balancer akan otomatis mengalihkan traffic ke server lain yang masih sehat, sehingga menghilangkan single point of failure.
 
-**Trade-off:** Infrastruktur jauh lebih mahal dan manajemen datanya lebih rumit.
+**Trade-off:** Infrastruktur menjadi lebih mahal dan kompleks untuk dikelola. Selain itu, muncul tantangan manajemen session. Contohnya, jika user sedang memilih makanan di server A, lalu server A down dan load balancer memindahkan user itu ke server B, data keranjang belanjannya bisa hilang jika tidak ada arsitektur database atau cache terpusat yang membagikan data antar server.
 
 ---
 
 ## Kesimpulan Kelompok
 
-[Ringkasan: jika FoodGo memperbaiki ketiga pitfall ini, apa arsitektur yang disarankan secara garis besar? Kaitkan dengan Tugas 2.]
+Berdasarkan analisis di atas, kegagalan sistem FoodGo saat jam sibhuk bukanlah disebabkan oleh satu faktor, melainkan kombinasi fatal antara kelemahan arsitektur dan asumsi kode yang keliru.
+
+Jika FoodGo ingin memperbaiki masalah ini secara menyeluruh, sistem tidak bisa hanya mengandalkan perbaikan hardware. Arsitektur yang kami sarankan secara garis besar adalah transisi menuju sistem terdistribusi yang tahan banting dengan langkah-lengkah terpadu:
+
+1. Di level aplikasi: melakukan refaktor dari monolitik murni menjadi modular agar setiap layanan (pesanan, pembayaran, notifikasi) memiliki batasan yang jelas.
+
+2. Di level jaringan: Menerapkan timeout, circuit breaker, dan retry dengan backoff agar aplikasi tdiak hang saat layanan pihak ketiga sedang bermasalah.
+
+3. Di level infrastruktur: Menerapkan scaling secara horizontal menggunakan load balancer untuk mendistribusi trafik, sehingga tidak ada lagi single point of failure.
+
+Untuk kaitan dengan tugas 2, kami telah mempelajari solusi yang lebih tepat untuk kedua faktor yang menyebabkan masalah.
+
+1. Untuk kelemahan arsitektur (Server monolitik & Single point of failure): Mengimplementasikan Service Oriented Architecture/SOA, dimana seiap modul dapat berdiri sendiri. Jadi, kalau modul kurir sedang deploy update, modul lainnya tidak akan terpengaruh.
+
+2. Untuk asumsi kode yang keliru: Mengimplementasikan sistem Publish-Subscribe, dimana modul modul tidak perlu menunggu respon dari modul lain, melainkan bisa menerima request sendiri secara asinknron.
