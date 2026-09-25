@@ -11,4 +11,5 @@
 
 | Tanggal | Tool AI | Prompt yang diberikan | Ringkasan saran/ide AI | Bagaimana diolah jadi tulisan/kode sendiri |
 |---|---|---|---|---|
-| ... | ... | ... | ... | ... |
+| 25 September 2026 | Gemini | 
+Halo, tolong jelasin ide dari tugas ini dong! dan saya sama kelompok saya jobdesknya ngapain aja. | Kalian diminta merancang ulang arsitektur FoodGo menggunakan gaya Service-Oriented Architecture (SOA), Publish-Subscribe (Pub-Sub), atau kombinasi keduanya. Tujuannya agar modul Pesanan, Pembayaran, Kurir, dan Resto bisa berdiri sendiri, berkomunikasi melalui network/broker, dan tidak saling mengunci. | Pembagian tugas |
