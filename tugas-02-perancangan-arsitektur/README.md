@@ -8,14 +8,30 @@ Melanjutkan Tugas 1: FoodGo butuh sistem yang **decoupled** agar tim kurir dan t
 
 ## Tugas Kelompok
 
-1. Pilih **satu** gaya arsitektur utama: **Service-Oriented Architecture (SOA)** atau **Publish-Subscribe**. Boleh dikombinasikan (mis. SOA untuk service inti + Pub-Sub untuk notifikasi), tapi harus dijustifikasi kenapa kombinasi ini yang dipilih.
+1. Pilih **satu** gaya arsitektur utama: **Service-Oriented Architecture (SOA)** atau **Publish-Subscribe**. Boleh dikombinasikan (mis. SOA untuk service inti + Pub-Sub untuk notifikasi), tapi harus dijustifikasi kenapa kombinasi ini yang dipilih. [Alif]
 
 Jawaban: Menurut analisis kelompok kami, kami lebih memilih menggunakan gaya arsitektur secara kombinasi, dengan mengombinasikan arsitektur SOA (Service-Oriented Architecture) dan Pub-Sub (Publish-Subscribe). 
 - SOA digunakan untuk fondasi pemisahan modul dan independent deployment supaya server tidak berat dalam menjalankan FoodGo.
 - Pub-Sub digunakan untuk event, notifikasi, dan komunikasi asynchronous. supaya kurir dapat menerima notifikasi secara asynchronous.
 
+2. Gambarkan minimal 4 komponen berikut dan interaksinya: modul Pesanan, modul Pembayaran, modul Kurir/Notifikasi, modul Katalog Resto (dan message broker/API gateway jika relevan). [Bastian]
 
-2. Gambarkan minimal 4 komponen berikut dan interaksinya: modul Pesanan, modul Pembayaran, modul Kurir/Notifikasi, modul Katalog Resto (dan message broker/API gateway jika relevan).
+```mermaid
+graph LR
+  %% Fase SOA (Sinkron)
+  Client[Pelanggan] -->|HTTP Request: Buat Pesanan| Gateway[API Gateway]
+  Gateway -->|Meneruskan request| OrderService[Service Pesanan]
+  OrderService -->|Mengirim request sinkron| StockService[Service stock resto]
+  StockService -->|Stok aman| OrderService
+  OrderService -->|Mengirim request sinkron| PaymentService[Service Pembayaran]
+  PaymentService -->|Pembayaran Sukses| OrderService
+  
+  %% Fase Pub-Sub (Asinkron)
+  OrderService -.->|Publish event: OrderPaid| Broker[(Message Broker)]
+  Broker -.->|Menyalurkan event| CourierService[Service Kurir/Notifikasi]
+  Broker -.->|Menyalurkan event| RestoNotifService[Service Resto]
+```
+
 3. Jelaskan alur satu skenario penuh secara end-to-end di diagram (misalnya: pelanggan buat pesanan → bayar → resto terima notifikasi → kurir ditugaskan) — tunjukkan komponen mana berkomunikasi dengan siapa, dan **jenis komunikasinya** (sinkron/asinkron, request-response/event).
 4. Analisis tertulis: kenapa gaya ini mengatasi masalah *coupling* dari Tugas 1, dan apa trade-off-nya (mis. Pub-Sub menambah kompleksitas debugging karena alur tidak linear).
 
