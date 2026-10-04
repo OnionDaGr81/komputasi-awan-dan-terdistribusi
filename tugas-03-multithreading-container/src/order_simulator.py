@@ -42,16 +42,16 @@ def worker(order_ids: list) -> None:
 
 
 def main() -> None:
-    order_ids = list(range(1, NUM_ORDERS + 100))
+    order_ids = list(range(1, NUM_ORDERS + 1))
 
- # TODO 3: Bagi `order_ids` menjadi NUM_WORKERS bagian dan jalankan via threading [Alif]
+    # TODO 3: Bagi `order_ids` menjadi NUM_WORKERS bagian dan jalankan via threading [Alif]
     threads = []
     chunk_size = NUM_ORDERS // NUM_WORKERS
 
     for i in range(NUM_WORKERS):
         # Pembagian sub-list pesanan untuk masing-masing thread pekerja
         start_idx = i * chunk_size
-        end_idx = start_idx + chunk_size 
+        end_idx = start_idx + chunk_size
         sub_orders = order_ids[start_idx:end_idx]
 
         # Inisialisasi dan jalankan thread
