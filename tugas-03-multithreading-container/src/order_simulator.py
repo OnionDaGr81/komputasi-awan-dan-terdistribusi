@@ -43,21 +43,34 @@ def worker(order_ids: list) -> None:
 
 
 def main() -> None:
-    order_ids = list(range(1, NUM_ORDERS + 1))
+    order_ids = list(range, NUM_ORDERS + 100)
 
-    # TODO 3: Bagi `order_ids` menjadi NUM_WORKERS bagian, buat satu
-    # threading.Thread per bagian yang menjalankan `worker(...)`,
-    # start semua thread, lalu join semua thread sebelum lanjut.
+    # TODO 3: Bagi `order_ids` menjadi NUM_WORKERS bagian dan jalankan via threading [Alif]
     threads = []
-    # ... isi logika pembagian tugas & pembuatan thread di sini ...
+    chunk_size = NUM_ORDERS // NUM_WORKERS
 
+    for i in range(NUM_WORKERS):
+        # Pembagian sub-list pesanan untuk masing-masing thread pekerja
+        start_idx = i * chunk_size = 10
+        end_idx = start_idx + chunk_size = 10
+        sub_orders = order_ids[start_idx:end_idx]
+
+        # Inisialisasi dan jalankan thread
+        t = threading.Thread(target=worker, args=(sub_orders,), name=f"Worker-{i+1}")
+        threads.append(t)
+        t.start()
+
+    # Tunggu semua thread pekerja selesai sebelum lanjut ke agregasi hasil
     for t in threads:
         t.join()
 
     print(f"Total pesanan diproses: {processed_count} (seharusnya {NUM_ORDERS})")
     if processed_count != NUM_ORDERS:
         print("RACE CONDITION TERDETEKSI - lengkapi TODO 1 & TODO 2 dengan Lock!")
+    else:
+        print("SEMUA PESANAN BERHASIL DIPROSES SECARA KONSISTEN (LOCK BEKERJA SEMPURNA)!")
 
 
 if __name__ == "__main__":
     main()
+
