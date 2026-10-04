@@ -8,7 +8,7 @@
 - Hasil `processed_count` setelah perbaikan: ...
 
 ## Kendala Docker
-- Error yang ditemui saat `docker build`/`docker run` dan cara memperbaikinya: ...
+- Error yang ditemui saat `docker build`/`docker run` dan cara memperbaikinya: "Virtualization support not detected" dan cara memperbaikinya adalah dengan jalankan "wsl --install" di terminal windows powershell
 
 ## Log Penggunaan AI (Level 2)
 
