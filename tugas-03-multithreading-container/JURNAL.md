@@ -1,5 +1,3 @@
-# Jurnal Proses - Tugas 3
-
 # Jurnal Proses — Tugas 3
 
 ## Percobaan tanpa Lock
