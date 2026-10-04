@@ -17,7 +17,7 @@ NUM_WORKERS = 10        # jumlah thread pekerja
 processed_count = 0
 
 # TODO 1: Buat objek Lock di sini untuk melindungi `processed_count`.
-# lSock = threading.Lock()
+lock = threading.Lock()
 
 
 def process_order(order_id: int) -> None:
@@ -28,9 +28,10 @@ def process_order(order_id: int) -> None:
     time.sleep(random.uniform(0.001, 0.01))
 
     # TODO 2: Tambahkan increment `processed_count` DI SINI.
-    curr = processed_count
-    time.sleep(0.0001)
-    processed_count = curr + 1
+    with lock:
+        curr = processed_count
+        time.sleep(0.0001)
+        processed_count = curr + 1
     pass
 
 
