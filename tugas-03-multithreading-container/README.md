@@ -67,6 +67,73 @@ docker build -t foodgo-order-sim .
 docker run --rm foodgo-order-sim
 ```
 
+Output yang diharapkan:
+
+```
+Total pesanan diproses: 100 (seharusnya 100)
+SEMUA PESANAN BERHASIL DIPROSES SECARA KONSISTEN (LOCK BEKERJA SEMPURNA)!
+```
+
+## Cara Kerja Program
+
+1. `main()` membuat daftar 100 `order_id`, lalu membaginya rata menjadi 10 bagian (10 pesanan per thread).
+2. Setiap bagian diberikan ke satu thread pekerja (`Worker-1` sampai `Worker-10`) yang langsung dijalankan dengan `t.start()`.
+3. Tiap thread memanggil `process_order()` untuk setiap pesanannya. Di dalamnya ada `time.sleep` acak 1 sampai 10 ms sebagai simulasi kerja nyata (validasi, hitung harga), lalu counter bersama `processed_count` ditambah 1.
+4. `main()` menunggu semua thread selesai dengan `t.join()`, lalu membandingkan `processed_count` dengan jumlah pesanan.
+
+Thread benar-benar berjalan bersamaan: semua thread di-`start()` lebih dulu, baru kemudian di-`join()`. Saat satu thread sedang menunggu (sleep), thread lain tetap bekerja. Lock hanya membungkus bagian increment counter, bukan bagian kerja pesanannya, sehingga pemrosesan pesanan tidak berubah menjadi antrean satu per satu.
+
+## Analisis Race Condition
+
+**Apa yang terjadi.** Semua thread memakai satu variabel yang sama, yaitu `processed_count`. Menambah nilainya terdiri dari tiga langkah: baca nilai lama, tambah 1, tulis kembali. Tanpa proteksi, dua thread bisa membaca nilai lama yang sama sebelum salah satunya sempat menulis. Keduanya lalu menulis hasil yang sama, dan satu penambahan hilang.
+
+**Hasil percobaan.** Tanpa lock, counter hanya mencapai **59 dari 100**, artinya 41 pesanan tidak terhitung. Di sistem nyata, ini setara dengan pesanan pelanggan yang sudah diproses tetapi tidak tercatat, atau stok dan saldo yang angkanya salah.
+
+![Race condition](bukti/Race_condition_dengan_code.png)
+
+**Perbaikan.** Bagian baca-tulis counter dibungkus dengan `with lock:`. Lock menjamin hanya satu thread yang boleh berada di bagian itu pada satu waktu, thread lain menunggu giliran. Hasilnya counter selalu **100 dari 100**.
+
+![Lock fixed](bukti/lock_fixed_dengan_code.png)
+
+| | Tanpa Lock | Dengan Lock |
+|---|---|---|
+| Hasil counter | 59 | 100 |
+| Pesanan tidak terhitung | 41 | 0 |
+| Konsisten? | Tidak | Ya |
+
+Detail percobaan dan penjelasan langkah demi langkah ada di [JURNAL.md](JURNAL.md).
+
+## Kenapa Threading, Bukan Proses Berat
+
+Masalah di studi kasus: server FoodGo membuat **satu proses OS baru untuk setiap pesanan**. Setiap proses membawa "perlengkapan" sendiri (salinan interpreter, memori, dan data program), sehingga 100 pesanan berarti 100 kali overhead tersebut, dan server kehabisan memori.
+
+Perumpamaannya seperti restoran. Model proses per pesanan sama dengan **membangun dapur baru untuk setiap pesanan**: aman karena tidak saling ganggu, tetapi sangat boros tempat dan lama menyiapkannya. Model thread sama dengan **satu dapur dengan beberapa koki**: semua koki berbagi peralatan dan bahan yang sama, jadi jauh lebih hemat.
+
+| | Proses per pesanan | Thread (solusi kami) |
+|---|---|---|
+| Memori | Tiap proses punya memori sendiri, 100 pesanan = 100 kali overhead | Semua thread berbagi memori satu proses |
+| Biaya membuat | Berat dan lambat | Ringan dan cepat |
+| Berbagi data | Sulit, perlu mekanisme khusus antar proses | Mudah, langsung pakai variabel yang sama |
+| Risiko | Boros resource | Race condition, perlu lock |
+
+Alasan threading cocok untuk kasus ini:
+
+- **Hemat memori.** Program kami menangani 100 pesanan hanya dengan 1 proses dan 10 thread, bukan 100 proses. Jumlah thread juga tetap (10) berapa pun pesanan yang masuk, sehingga pemakaian resource tidak ikut membengkak.
+- **Pekerjaannya banyak menunggu (I/O-bound).** Memproses pesanan sebagian besar berupa menunggu: query database, panggilan ke layanan pembayaran, dan sebagainya (di simulasi diwakili `time.sleep`). Saat satu thread menunggu, Python memberi giliran ke thread lain, sehingga waktu tunggu tidak terbuang. Secara perhitungan kasar, 100 pesanan dengan rata-rata 5,5 ms akan butuh sekitar 550 ms bila sekuensial, tetapi hanya sekitar sepersepuluhnya bila dibagi ke 10 thread.
+- **Multiprocessing tidak diperlukan.** Multiprocessing baru unggul untuk pekerjaan yang berat di perhitungan CPU. Untuk pekerjaan yang dominan menunggu, multiprocessing hanya mengulang masalah awal, yaitu banyak proses yang masing-masing memakan memori.
+
+Konsekuensinya, karena thread berbagi memori, data bersama harus dijaga. Itulah sebabnya race condition muncul di percobaan kami dan mengapa `Lock` wajib dipasang pada counter. Jadi threading menukar boros memori dengan kewajiban sinkronisasi, dan untuk kasus FoodGo pertukaran ini menguntungkan.
+
+## Container (Docker)
+
+Program dikemas dengan base image `python:3.13.7-slim`, varian ringan dari image Python resmi. Karena program hanya memakai standard library, `requirements.txt` tidak berisi dependency tambahan.
+
+Container sejalan dengan tema efisiensi di tugas ini: berbeda dengan virtual machine yang membawa sistem operasi lengkap, container berbagi kernel dengan host sehingga lebih ringan dan cepat dijalankan. Selain itu, lingkungan di dalam container selalu sama (versi Python, struktur folder), jadi program berjalan sama di laptop siapa pun maupun di server.
+
+Hasil pengujian: output di dalam container **sama persis** dengan output saat dijalankan langsung di laptop (100 dari 100).
+
+![Docker vs lokal](bukti/Perbandingan_docker_vs_lokal.png)
+
 ## Struktur Submission
 
 ```

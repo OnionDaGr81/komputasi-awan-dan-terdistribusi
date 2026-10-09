@@ -4,7 +4,7 @@
 - [RPC / MQ / keduanya], alasan: ...
 
 ## Kendala teknis
-- Error saat setup (mis. koneksi RabbitMQ ditolak, port bentrok): ...
+- Error saat setup rabbitmq dan menjalankan consumer.py
 
 ## Uji "pesan tidak hilang" (khusus Jalur B)
 - Langkah uji: matikan consumer → jalankan publisher → nyalakan consumer
