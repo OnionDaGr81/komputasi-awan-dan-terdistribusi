@@ -8,7 +8,7 @@
 
 ## Uji "pesan tidak hilang" (khusus Jalur B)
 - Langkah uji: matikan consumer → jalankan publisher → nyalakan consumer
-- Hasil yang diamati: ...
+- Hasil yang diamati: ... 
 
 ## Log Penggunaan AI (Level 2)
 
