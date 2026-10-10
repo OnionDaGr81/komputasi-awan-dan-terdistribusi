@@ -22,7 +22,7 @@ processed_count = 0
 
 def process_order(order_id: int) -> None:
     """Proses satu pesanan. Dipanggil oleh tiap thread pekerja."""
-    global processed_count
+    global processed_count 
 
     # Simulasikan kerja nyata (mis. validasi, hitung total harga)
     time.sleep(random.uniform(0.001, 0.01))
