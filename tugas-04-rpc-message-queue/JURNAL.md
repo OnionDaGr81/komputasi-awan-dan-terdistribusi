@@ -8,7 +8,16 @@
 
 ## Uji "pesan tidak hilang" (khusus Jalur B)
 - Langkah uji: matikan consumer → jalankan publisher → nyalakan consumer
-- Hasil yang diamati: ...
+- Hasil yang diamati: 
+
+jalankan `publisher.py` dua kali saat `consumer.py` belum dinyalakan.
+Setiap kali jalan, publisher mengirim 3 event pembayaran (user1 = 20000, user2 = 40000, user3 = 60000), jadi total ada 6 pesan. Di dashboard RabbitMQ, queue `pembayaran_berhasil` menunjukkan Ready = 6, Unacked = 0, danConsumers = 0. Artinya pesan sudah masuk antrean, tetapi belum ada consumer yang mengambilnya ![no3-01-publisher-consumer-mati.png](image.png) ![no3-02-dashboard-ready6-consumer0.png](image-1.png)
+
+Setelah itu `consumer.py` dinyalakan. Consumer langsung mencetak 6 baris"Kurir menerima notifikasi pembayaran" dengan urutan user1, user2, user3, user1, user2, user3, sama persis dengan urutan saat dikirim ![no3-03-consumer-memproses-6-pesan.png](image-2.png)
+
+Dashboard kemudian menunjukkan Ready = 0 dan Consumers = 1 ![no3-04-dashboard-ready0-consumer1.png](image-3.png)
+Jadi tidak ada pesan yang hilang, walaupun consumer sedang mati ketika publisher mengirim
+
 
 ## Log Penggunaan AI (Level 2)
 
