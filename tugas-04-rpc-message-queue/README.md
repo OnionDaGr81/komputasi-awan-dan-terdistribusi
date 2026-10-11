@@ -2,116 +2,227 @@
 
 **Materi terkait:** Remote Procedure Call (RPC), Message-Oriented Middleware (MOM)/Message Queue.
 
+## Pembagian Kerja
+ 
+| Nama | NIM | Yang dikerjakan |
+|---|---|---|
+| Duarte Sebastian Napitupulu | 103072400152 | consumer.py, client.py, server.py, dokumentasi bukti, analisis jurnal & readme |
+| Chaesar Pratama | 103072400119 | publisher.py & Dokumentasi bukti |
+| Didit Septa Putra | 103072400071 | Pengujian dan bukti |
+| Alif Rifqi Pratama | 103072400133 |  Analisis tambahan, pengujian dan merapikan laporan |
+
 ## Studi Kasus
-
+ 
 Modul **Pembayaran** dan modul **Pesanan** FoodGo harus berkomunikasi secara reliabel. Untuk beberapa operasi (mis. cek status saldo) respons dibutuhkan **seketika** (sinkron). Untuk operasi lain (mis. kirim notifikasi "pembayaran berhasil" ke modul kurir) sistem **tidak boleh menunggu** — modul pembayaran harus tetap responsif walau modul kurir sedang sibuk/down (asinkron).
-
-## Pilihan Tugas
-
-Kelompok **wajib memilih salah satu jalur** di bawah (boleh mengerjakan keduanya untuk nilai eksplorasi tambahan, tapi minimal satu harus selesai penuh dengan bukti jalan):
-
-### Jalur A — RPC (Sinkron)
-
-Skeleton di folder `rpc/` memakai `xmlrpc` — bagian dari Python standard library, **tidak perlu install apa pun**.
-
-- `rpc/server.py`: mensimulasikan modul Pembayaran, expose fungsi `cek_saldo(user_id)` dan `proses_pembayaran(user_id, jumlah)` lewat RPC.
-- `rpc/client.py`: mensimulasikan modul Pesanan yang memanggil fungsi RPC di atas dan menunggu hasilnya.
-
-Jalankan (dua terminal terpisah, di laptop yang sama):
+ 
+## Jalur yang Kami Pilih
+ 
+Kami mengerjakan **kedua jalur**, masing-masing untuk kebutuhan yang berbeda:
+ 
+| Jalur | Komunikasi | Kenapa |
+|---|---|---|
+| **A — RPC** (`rpc/`) | Pesanan → Pembayaran (`cek_saldo`, `proses_pembayaran`) | Pesanan butuh jawaban saat itu juga |
+| **B — Message Queue** (`mq/`) | Pembayaran → Kurir (`pembayaran_berhasil`) | Pembayaran tidak butuh balasan dan tidak boleh menunggu |
+ 
+Cara menjalankan Jalur A (tidak perlu install apa pun):
+ 
 ```bash
-python3 rpc/server.py      # terminal 1
-python3 rpc/client.py      # terminal 2
+python rpc/server.py          # terminal 1: modul Pembayaran
+python rpc/client.py          # terminal 2: modul Pesanan
 ```
-
-### Jalur B — Message Queue / MOM (Asinkron)
-
-Skeleton di folder `mq/` memakai **RabbitMQ** yang dijalankan **lokal lewat Docker** (image resmi RabbitMQ, gratis, tidak perlu daftar akun apa pun) + library Python `pika`.
-
+ 
+Cara menjalankan Jalur B:
+ 
 ```bash
 cd mq
-docker compose up -d           # jalankan broker RabbitMQ lokal
-python3 -m venv venv && source venv/bin/activate
+docker compose up -d          # broker RabbitMQ lokal
 pip install -r requirements.txt
-python3 consumer.py            # terminal 1: jalankan dulu consumer (modul kurir)
-python3 publisher.py           # terminal 2: kirim event (modul pembayaran)
+python consumer.py            # terminal 1: modul Kurir
+python publisher.py           # terminal 2: modul Pembayaran
 ```
-
-- `mq/publisher.py`: mensimulasikan modul Pembayaran yang mem-publish event `pembayaran_berhasil` tanpa menunggu balasan.
-- `mq/consumer.py`: mensimulasikan modul Kurir/Notifikasi yang subscribe dan memproses event tersebut kapan pun siap.
-
-Dashboard manajemen RabbitMQ (untuk lihat antrean secara visual) otomatis aktif di `http://localhost:15672` (login default `guest`/`guest`) — sertakan screenshot dashboard ini sebagai bukti tambahan.
-
-## Tugas Kelompok
-
-1. Lengkapi bagian `# TODO` di jalur yang dipilih.
-2. Buktikan program benar-benar berjalan (screenshot 2 terminal berdampingan, atau video).
-3. Untuk Jalur B, matikan dulu `consumer.py`, jalankan `publisher.py` beberapa kali, lalu nyalakan `consumer.py` — buktikan pesan **tetap diproses** (tidak hilang) karena antrean menyimpannya. Ini adalah inti pembelajaran *asynchronous decoupling*.
-4. Tulis analisis: kenapa jalur ini (RPC atau MQ) cocok untuk skenario yang kalian pilih, dan apa yang terjadi jika dipakai untuk skenario yang salah (mis. RPC dipakai untuk notifikasi kurir → modul pembayaran ikut lambat kalau kurir down).
-
-## TODO pada jalur yang kami pilih
-
-Bagian # TODO pada publisher.py dan consumer.py telah diselesaikan oleh Anggota 1 dan 2. Kode sudah berjalan sesuai fungsinya. 
-Berikut adalah # TODO pada publisher.py:
-# TODO 1: buat koneksi ke RabbitMQ di localhost (pika.BlockingConnection
-    # dengan ConnectionParameters(host="localhost")), lalu buat channel.
+ 
+---
+ 
+## 1. Jalur A — RPC
+ 
+### 1.1 Penyelesaian `# TODO`
+ 
+`rpc/server.py` — modul Pembayaran:
+ 
+```python
+LAMA_PROSES = 5   # server sengaja dibuat "sibuk" 5 detik per panggilan
+ 
+ 
+def cek_saldo(user_id: str) -> float:
+    # TODO 1
+    print(f"[server] cek_saldo({user_id}) diterima, memproses {LAMA_PROSES} detik...")
+    time.sleep(LAMA_PROSES)
+ 
+    if user_id not in saldo_user:
+        raise ValueError(f"user {user_id} tidak ditemukan")
+ 
+    print(f"[server] cek_saldo({user_id}) selesai, balasan dikirim")
+    return saldo_user[user_id]
+ 
+ 
+def proses_pembayaran(user_id: str, jumlah: float) -> dict:
+    # TODO 2
+    print(f"[server] proses_pembayaran({user_id}, {jumlah}) diterima")
+ 
+    if user_id not in saldo_user:
+        raise ValueError(f"user {user_id} tidak ditemukan")
+ 
+    if saldo_user[user_id] < jumlah:
+        return {"status": "gagal", "saldo_akhir": saldo_user[user_id]}
+ 
+    saldo_user[user_id] = saldo_user[user_id] - jumlah
+    print(f"[server] saldo {user_id} SUDAH DIPOTONG, sisa {saldo_user[user_id]}")
+ 
+    print(f"[server] menyiapkan balasan {LAMA_PROSES} detik...")
+    time.sleep(LAMA_PROSES)
+ 
+    print("[server] proses_pembayaran selesai, balasan dikirim")
+    return {"status": "sukses", "saldo_akhir": saldo_user[user_id]}
+ 
+ 
+def main():
+    # TODO 3
+    server = SimpleXMLRPCServer(("localhost", 8000))
+    server.register_function(cek_saldo)
+    server.register_function(proses_pembayaran)
+    print("RPC server modul Pembayaran berjalan di port 8000...")
+    server.serve_forever()
+```
+ 
+`rpc/client.py` — modul Pesanan:
+ 
+```python
+def main():
+    # TODO 1
+    proxy = xmlrpc.client.ServerProxy("http://localhost:8000")
+ 
+    start = time.time()
+    try:
+        print("Memanggil cek_saldo('user1') ... menunggu respons sinkron")
+        # TODO 2
+        saldo = proxy.cek_saldo("user1")
+        print(f"  -> saldo user1 = {saldo} (menunggu {time.time() - start:.1f} detik)")
+ 
+        start = time.time()
+        print("Memanggil proses_pembayaran('user1', 20000) ...")
+        # TODO 3
+        hasil = proxy.proses_pembayaran("user1", 20000)
+        print(f"  -> hasil = {hasil} (menunggu {time.time() - start:.1f} detik)")
+ 
+    except Exception as e:
+        print(f"  [!] GAGAL setelah menunggu {time.time() - start:.1f} detik")
+        print(f"      Error: {type(e).__name__}: {e}")
+        print("      Client tidak mendapat balasan apa pun dari server.")
+```
+ 
+Keputusan kami:
+ 
+- **User tidak dikenal → error, bukan `return 0`.** Saldo 0 artinya "user ada tetapi tidak punya uang". Itu berbeda dengan "user tidak ada".
+- **Saldo tidak cukup → `{"status": "gagal"}`.** Ini hasil yang wajar, bukan kerusakan sistem.
+- **Server diberi jeda 5 detik.** Supaya terlihat bahwa client ikut menunggu, dan ada waktu untuk mematikan server di tengah proses.
+### 1.2 Uji 1 — Client menunggu balasan (bukti sinkron)
+ 
+Server (kiri) dan client (kanan) dijalankan berdampingan. Client menunggu **7.0 detik** untuk `cek_saldo` dan **7.1 detik** untuk `proses_pembayaran`: 5 detik kerja server ditambah ± 2 detik membuka koneksi. Selama itu client tidak bisa melakukan hal lain.
+ 
+![RPC: client menunggu balasan server](bukti/rpc-01-client-menunggu.png)
+ 
+### 1.3 Uji 2 — Server mati sebelum dipanggil
+ 
+Client dijalankan tanpa server. Client gagal setelah 4.1 detik dengan `ConnectionRefusedError`. Permintaannya tidak disimpan di mana pun.
+ 
+![RPC: server mati, client gagal](bukti/rpc-02-server-mati.png)
+ 
+### 1.4 Uji 3 — Server mati di tengah proses
+ 
+Terminal server kami tutup tepat setelah muncul `saldo user1 SUDAH DIPOTONG, sisa 30000`.
+ 
+Di sisi **server**, saldo sudah dipotong, tetapi baris `balasan dikirim` tidak pernah muncul:
+ 
+![RPC: server berhenti sebelum membalas](bukti/rpc-03-01-server-mati-di-tengah.png)
+ 
+Di sisi **client**, yang diterima hanya `[!] GAGAL setelah menunggu 10.4 detik`:
+ 
+![RPC: client gagal tanpa balasan](bukti/rpc-03-02-server-mati-di-tengah.png)
+ 
+Jadi client mengira pembayaran gagal, padahal saldo sudah terpotong. Error-nya pun sama persis dengan Uji 2 (`ConnectionRefusedError`), sehingga client tidak bisa membedakan "belum diproses" dengan "sudah diproses".
+ 
+---
+ 
+## 2. Jalur B — Message Queue
+ 
+### 2.1 Penyelesaian `# TODO`
+ 
+`mq/publisher.py` — modul Pembayaran:
+ 
+```python
+def main():
+    # TODO 1: koneksi ke RabbitMQ, lalu buat channel
     connection = pika.BlockingConnection(pika.ConnectionParameters(host="localhost"))
     channel = connection.channel()
-
-    # TODO 2: deklarasikan queue dengan nama QUEUE_NAME (channel.queue_declare),
-    # gunakan durable=True supaya pesan tidak hilang walau RabbitMQ restart.
+ 
+    # TODO 2: deklarasikan queue yang durable
     channel.queue_declare(queue=QUEUE_NAME, durable=True)
-
+ 
     for i in range(1, 4):
         pesan = {
             "user_id": f"user{i}",
             "jumlah": 20000 * i,
             "timestamp": time.time(),
         }
-        # TODO 3: publish `pesan` (di-encode json) ke QUEUE_NAME memakai
-        # channel.basic_publish(...). Cetak log "Event terkirim: ..." setiap publish.
+        # TODO 3: publish pesan dan cetak log
         channel.basic_publish(
             exchange="",
             routing_key=QUEUE_NAME,
             body=json.dumps(pesan),
             properties=pika.BasicProperties(
-                delivery_mode=pika.DeliveryMode.Persistent  # Pesan disimpan ke disk
+                delivery_mode=pika.DeliveryMode.Persistent  # pesan disimpan ke disk
             ),
         )
         print(f"[x] Event terkirim: {pesan}")
         time.sleep(1)
-
-    # TODO 4: tutup koneksi (connection.close()) setelah selesai.
+ 
+    # TODO 4: tutup koneksi
     connection.close()
     print("Publisher selesai mengirim event.")
-
-Dan berikut merupakan # TODO pada consumer.py:
-# TODO 1: proses pesan
+```
+ 
+`mq/consumer.py` — modul Kurir:
+ 
+```python
+def callback(ch, method, properties, body):
+    try:
+        pesan = json.loads(body)
+        if not isinstance(pesan, dict):
+            raise ValueError("isi pesan bukan JSON object")
+    except ValueError as e:
+        print(f"[!] Pesan tidak valid, dibuang: {body!r} ({e})")
+        ch.basic_reject(delivery_tag=method.delivery_tag, requeue=False)
+        return
+ 
+    # TODO 1: proses pesan
     user_id = pesan.get("user_id")
     jumlah = pesan.get("jumlah")
     print(f"[x] Kurir menerima notifikasi pembayaran untuk {user_id} sejumlah {jumlah}")
-
+ 
     # TODO 2: kirim acknowledgement supaya pesan dihapus dari antrean
     ch.basic_ack(delivery_tag=method.delivery_tag)
-
-
+ 
+ 
 def main():
     # TODO 3: koneksi, channel, deklarasi queue yang sama, daftarkan callback
     connection = pika.BlockingConnection(pika.ConnectionParameters(host="localhost"))
     channel = connection.channel()
-
     channel.queue_declare(queue=QUEUE_NAME, durable=True)
-
-    # Ambil 1 pesan dulu, baru ambil berikutnya setelah di-ack
     channel.basic_qos(prefetch_count=1)
-
-    channel.basic_consume(
-        queue=QUEUE_NAME,
-        on_message_callback=callback,
-        auto_ack=False,
-    )
-
+    channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback, auto_ack=False)
+ 
     print("Menunggu event dari antrean 'pembayaran_berhasil'... (Ctrl+C untuk berhenti)")
-
+ 
     # TODO 4: mulai mendengarkan antrean
     try:
         channel.start_consuming()
@@ -120,27 +231,99 @@ def main():
         channel.stop_consuming()
     finally:
         connection.close()
+```
+ 
+Keputusan kami:
+ 
+- **`durable=True` + `delivery_mode=Persistent`.** Yang pertama menjaga queue-nya, yang kedua menjaga isi pesannya. Dua-duanya perlu supaya pesan tersimpan di disk.
+- **`auto_ack=False`.** Pesan baru dihapus dari antrean setelah consumer selesai memprosesnya.
+- **Pesan yang bukan JSON dibuang.** Kalau dikembalikan ke antrean, pesan rusak itu akan terus dikirim ulang.
+### 2.2 Bukti program berjalan
+ 
+**Publisher dan consumer hidup bersamaan.** Tiga event dari publisher (kiri) langsung diterima consumer (kanan):
+ 
+![Publisher dan consumer berdampingan](bukti/03_dual_terminal_publisher_consumer.png)
+ 
+**Publisher saja, tanpa consumer.** Tiga event terkirim dan program selesai tanpa menunggu siapa pun:
+ 
+![Terminal publisher](bukti/02_terminal_publisher.png)
+ 
+Tiga event itu terlihat di dashboard sebagai **Ready: 3**, dan queue-nya bertanda **D** (durable):
+ 
+![Dashboard: Ready 3](bukti/01_dashboard_queue_ready.png)
+ 
+**Pesan ditandai persistent.** Pesan uji yang kami ambil lewat menu *Get messages* punya `delivery_mode: 2`:
+ 
+![Get messages: delivery_mode 2](bukti/TODO3_Publisher.png)
+ 
+**Pesan tidak valid tidak membuat consumer mati.** `Halo ini bukan json` dan `123` dibuang, lalu pesan valid untuk `user9` tetap diproses:
+ 
+![Consumer menolak pesan tidak valid](bukti/Consumer_py_work.png)
+ 
+### 2.3 Uji "pesan tidak hilang" (*asynchronous decoupling*)
+ 
+**Langkah 1 — consumer dimatikan, publisher dijalankan dua kali.** Total 6 event terkirim. Publisher selesai normal walau tidak ada penerima.
+ 
+![Publisher dijalankan 2x saat consumer mati](bukti/no3-01-publisher-consumer-mati.png)
+ 
+**Langkah 2 — pesan menumpuk di broker.** Dashboard menunjukkan **Ready: 6**, **Consumers: 0**, **Persistent: 6**, `durable: true`, dan ukuran total **418 B**. Enam pesan JSON kami memang berukuran 70 + 70 + 70 + 69 + 70 + 69 = 418 byte.
+ 
+![Dashboard: Ready 6, Consumers 0](bukti/no3-02-dashboard-ready6-consumer0.png)
+ 
+**Langkah 3 — consumer dinyalakan lagi.** Keenam pesan langsung diproses sesuai urutan kirim, tanpa publisher dijalankan ulang.
+ 
+![Consumer memproses 6 pesan](bukti/no3-03-consumer-memproses-6-pesan.png)
+ 
+**Langkah 4 — antrean kosong lagi.** **Ready: 0**, **Consumers: 1**. Grafik turun dari 6 ke 0 bersamaan dengan lonjakan *Consumer ack*.
+ 
+![Dashboard: Ready 0, Consumers 1](bukti/no3-04-dashboard-ready0-consumer1.png)
+ 
+**Kesimpulan:** 6 pesan dikirim saat penerima mati, menunggu di broker sekitar satu menit, lalu keenamnya diproses. Tidak ada yang hilang.
+ 
+---
+ 
+## 3. Analisis Pemilihan Pola Komunikasi
+ 
+### A. Kenapa RPC untuk cek saldo dan proses pembayaran
+ 
+Modul Pesanan tidak bisa lanjut tanpa jawabannya: pesanan baru boleh dibuat kalau saldo cukup. Di Uji 1, client menunggu lalu langsung mendapat `saldo user1 = 50000` dan bisa mengambil keputusan. Menunggu di sini memang yang dibutuhkan.
+ 
+### B. Kenapa Message Queue untuk notifikasi kurir
+ 
+Modul Pembayaran tidak butuh jawaban dari Kurir. Di uji 2.3, publisher selesai normal padahal Consumers: 0, dan 6 pesannya tetap sampai setelah consumer hidup. Pembayaran tidak terganggu, notifikasi tidak hilang.
+ 
+### C. Kalau polanya tertukar
+ 
+**RPC dipakai untuk notifikasi kurir:**
+ 
+- Kurir lambat → Pembayaran ikut lambat. Di Uji 1, client tertahan ± 7 detik per panggilan selama server bekerja.
+- Kurir mati → notifikasi hilang. Di Uji 2, client langsung gagal dan permintaannya tidak tersimpan. Di MQ, kondisi yang sama berakhir dengan 6 dari 6 pesan tetap sampai.
+**MQ dipakai untuk cek saldo:**
+ 
+- Pesanan harus mengirim pesan, lalu menunggu balasan di antrean lain. Lebih rumit untuk hal yang sederhana.
+- Kalau Pembayaran mati, permintaan hanya mengantre dan pelanggan menunggu tanpa kepastian. Lebih baik gagal cepat seperti di Uji 2.
+### D. Ringkasan
+ 
+| | RPC (sinkron) | Message Queue (asinkron) |
+|---|---|---|
+| Pemanggil butuh jawaban sekarang? | Ya | Tidak |
+| Penerima mati | Pemanggil langsung gagal (Uji 2) | Pesan menunggu di antrean (uji 2.3) |
+| Penerima lambat | Pemanggil ikut lambat (Uji 1) | Pengirim tetap cepat |
+| Kami pakai untuk | `cek_saldo`, `proses_pembayaran` | notifikasi `pembayaran_berhasil` |
+ 
+### E. Kelemahan masing-masing
+ 
+**RPC**
+ 
+- Pemanggil bergantung penuh pada server: server lambat atau mati, pemanggil ikut kena.
+- Kalau server mati di tengah proses, hasilnya tidak jelas. Di Uji 3, client menerima error padahal saldo sudah dipotong. Kalau client mengulang, saldo bisa terpotong dua kali.
+**Message Queue**
+ 
+- Tidak ada jawaban langsung: publisher hanya tahu pesan sampai di broker, bukan bahwa Kurir sudah memprosesnya.
+- Broker harus selalu hidup. Kurir boleh mati, tetapi kalau RabbitMQ mati, publisher gagal tersambung.
+- `docker-compose.yml` kami tidak memakai volume, jadi pesan hilang kalau container dihapus (`docker compose down`). Ini tidak kami uji; kami tulis sebagai batasan.
+---
 
-## Bukti program kami benar-benar berjalan
-
-Bukti program berjalan dapat dilihat pada folder bukti/. Terdapat screenshot terminal publisher.py dan consumer.py yang menunjukkan proses pengiriman dan penerimaan pesan.
-
-## Uji pesan tidak hilang
-
-1. Langkah 1: Matikan consumer.py (simulasi Kurir sedang down).
-2. Langkah 2: Jalankan publisher.py beberapa kali.
-3. Bukti 1: Buka dashboard RabbitMQ. Terlihat pesan menumpuk di queue pembayaran_berhasil dengan status Ready: 6. (Sertakan nama file screenshot-nya, misal: bukti/dashboard_menumpuk.png).
-4. Langkah 3: Nyalakan kembali consumer.py.
-5. Bukti 2: Di terminal Consumer, terlihat pesan diproses satu per satu ([x] Kurir menerima notifikasi...). (Sertakan nama file screenshot-nya, misal: bukti/terminal_consumer.png).
-6. Kesimpulan: Tidak ada pesan yang hilang. Ini membuktikan asynchronous decoupling berhasil.
-
-## Hasil analisis pada program
-
-A. Mengapa Message Queue (MQ) Cocok?
-    Karena MQ bersifat asinkron dan decoupling. Modul Pembayaran tidak perlu menunggu balasan dari Kurir. Kalau Kurir sibuk atau mati, pesan tetap aman di queue. Pembayaran tetap responsif.
-
-B. Apa yang Terjadi Jika Pakai RPC?
-    RPC bersifat sinkron (blocking). Jika dipakai untuk notifikasi Kurir, modul Pembayaran akan macet/lambat karena harus menunggu balasan Kurir. Jika Kurir mati, modul Pembayaran ikut error/gagal. Ini melanggar prinsip reliabilitas di studi kasus.
 
 ## Struktur Submission
 
