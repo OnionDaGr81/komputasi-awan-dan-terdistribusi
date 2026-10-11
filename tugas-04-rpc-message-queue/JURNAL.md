@@ -11,6 +11,16 @@ Kami memilih Jalur B (Message Queue) karena skenario notifikasi "pembayaran berh
 ## Uji "pesan tidak hilang" (khusus Jalur B)
 - Langkah uji: matikan consumer → jalankan publisher → nyalakan consumer
 - Hasil yang diamati: 
+
+jalankan `publisher.py` dua kali saat `consumer.py` belum dinyalakan.
+Setiap kali jalan, publisher mengirim 3 event pembayaran (user1 = 20000, user2 = 40000, user3 = 60000), jadi total ada 6 pesan. Di dashboard RabbitMQ, queue `pembayaran_berhasil` menunjukkan Ready = 6, Unacked = 0, danConsumers = 0. Artinya pesan sudah masuk antrean, tetapi belum ada consumer yang mengambilnya ![publish consumer](bukti/no3-01-publisher-consumer-mati.png)
+![dasboard ready 6](bukti/no3-02-dashboard-ready6-consumer0.png)
+
+Setelah itu `consumer.py` dinyalakan. Consumer langsung mencetak 6 baris"Kurir menerima notifikasi pembayaran" dengan urutan user1, user2, user3, user1, user2, user3, sama persis dengan urutan saat dikirim ![consumer 6](bukti/no3-03-consumer-memproses-6-pesan.png)
+
+Dashboard kemudian menunjukkan Ready = 0 dan Consumers = 1 ![dashboard ready 0](bukti/no3-04-dashboard-ready0-consumer1.png)
+Jadi tidak ada pesan yang hilang, walaupun consumer sedang mati ketika publisher mengirim
+
 Berdasarkan pengujian yang telah dilakukan, berikut adalah hasilnya:
   
   1. *Skenario Consumer Mati: Kami mematikan consumer.py terlebih dahulu. Setelah itu, kami menjalankan publisher.py untuk mengirim beberapa pesan. Hasilnya, pesan-pesan tersebut menumpuk di dalam queue pembayaran_berhasil. Hal ini dibuktikan dengan screenshot dashboard RabbitMQ yang menunjukkan status **Ready: 6* (bukti: bukti/ready6-consumer0.png).
