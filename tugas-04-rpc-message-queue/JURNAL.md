@@ -31,11 +31,12 @@ Alasan: komunikasi modul Pesanan ke modul Pembayaran (cek_saldo, proses_pembayar
  
 Dari dashboard kami publish `Halo ini bukan json` dan `123`. Consumer mencetak `[!] Pesan tidak valid, dibuang` untuk keduanya dan tetap hidup, lalu memproses pesan valid `{"user_id": "user9", "jumlah": 5000}` (`bukti/Consumer_py_work.png`).
  
-### Jalur A — RPC (ISI_TANGGAL, ± ISI_JAM WIB)
- 
-1. **Normal.** `server.py` dan `client.py` dijalankan berdampingan. Client menunggu ± ISI detik untuk tiap panggilan, lalu menerima saldo 50000 dan hasil pembayaran `sukses` dengan saldo akhir 30000 (`bukti/rpc-01-client-menunggu.png`).
-2. **Server mati sebelum dipanggil.** `client.py` dijalankan tanpa server: gagal setelah ISI detik dengan `ISI_NAMA_ERROR` (`bukti/rpc-02-server-mati.png`).
-3. **Server mati di tengah proses.** Server dijalankan dengan jeda 10 detik, dimatikan dengan menutup terminalnya (*Kill Terminal*) saat client sedang menunggu `cek_saldo`: client gagal setelah ISI detik dengan `ISI_NAMA_ERROR` (`bukti/rpc-03-server-mati-di-tengah.png`).
+### Jalur A — RPC (11 Oktober 2026, ± 22.53–23.11 WIB)
+
+1. **Normal.** `server.py` dan `client.py` dijalankan berdampingan. Client menunggu 7.0 detik untuk `cek_saldo` dan 7.1 detik untuk `proses_pembayaran` (5 detik kerja server ditambah ± 2 detik membuka koneksi), lalu menerima saldo 50000 dan hasil `sukses` dengan saldo akhir 30000 (`bukti/rpc-01-client-menunggu.png`).
+2. **Server mati sebelum dipanggil.** `client.py` dijalankan tanpa server: gagal setelah 4.1 detik dengan `ConnectionRefusedError: [WinError 10061]` (`bukti/rpc-02-server-mati.png`).
+3. **Server mati di tengah proses.** Terminal server ditutup (*Kill Terminal*) setelah muncul log `saldo user1 SUDAH DIPOTONG, sisa 30000`, saat client sedang menunggu `proses_pembayaran`: client gagal setelah 10.4 detik dengan `ConnectionRefusedError: [WinError 10061]` (`bukti/rpc-03-01-server-mati-di-tengah.png`, `bukti/rpc-03-02-server-mati-di-tengah.png`).
+
 ## Pertanyaan Wajib (Jalur B): ke mana pesan "hilang sementara" tersimpan saat consumer mati?
  
 Pesan tidak hilang dan tidak berada di publisher maupun consumer. Pesan tersimpan **di dalam broker RabbitMQ** (container Docker `mq-rabbitmq-1`), pada queue `pembayaran_berhasil`, dalam status **Ready** — artinya sudah diterima broker dan belum diserahkan ke consumer mana pun.
@@ -52,21 +53,21 @@ Hal yang awalnya kami kira tetapi ternyata keliru: `durable=True` saja tidak cuk
 Batasan yang kami sadari: `docker-compose.yml` tidak memakai volume, jadi "disk" yang dimaksud adalah penyimpanan milik container. Pesan aman selama container yang sama masih ada, tetapi tidak setelah `docker compose down`. Skenario ini tidak kami uji.
  
 ## Pertanyaan Wajib (Jalur A): apa yang terjadi pada request RPC jika server mati di tengah proses?
- 
-Request itu **hilang bersama server**, dan client menerima error tanpa tahu sejauh mana permintaannya sudah dikerjakan.
- 
-Yang kami amati di percobaan 3 (`bukti/rpc-03-01-server-mati-di-tengah.png`):
- 
-- **Server sudah menerima request.** Di terminal server muncul log `[server] cek_saldo('user1') diterima, memproses 10.0 detik...`, jadi permintaan sudah sampai dan sedang dikerjakan.
-- **Client sedang tertahan.** Terminal client berhenti di baris `Memanggil cek_saldo('user1') ... menunggu respons sinkron` tanpa bisa melakukan hal lain.
-- **Saat proses server dimatikan, client ikut gagal.** Client mencetak `[!] GAGAL setelah ISI detik: ISI_NAMA_ERROR`. Tidak ada nilai balik sama sekali, sukses maupun gagal.
-- **Tidak ada yang menyimpan request itu.** Ketika `server.py` kami jalankan lagi, request yang terputus tidak dilanjutkan; server mulai dari kosong dan client harus memanggil ulang sendiri. ISI: tulis apa yang kalian lihat saat server dinyalakan lagi.
-Perbandingan dengan percobaan 2: ketika server mati *sebelum* dipanggil, client gagal dalam ISI detik dan pasti tidak ada yang diproses. Ketika server mati *di tengah* proses, client sempat menunggu ISI detik lalu gagal, dan dari sisi client kedua kasus berakhir dengan error yang serupa. Padahal keadaannya berbeda: pada kasus kedua, server sudah mulai bekerja.
- 
-Inilah risiko utama RPC untuk `proses_pembayaran`: bila server mati setelah saldo dipotong tetapi sebelum balasan terkirim, client menerima error padahal uang sudah terpotong. Jika client lalu mencoba ulang, saldo bisa terpotong dua kali. Di kode kami hal ini belum ditangani; penanganannya butuh ID transaksi supaya permintaan ulang bisa dikenali server (idempoten).
- 
-Bandingkan dengan Jalur B: penerima yang mati tidak membuat pengirim gagal, dan pesan tetap tersimpan di broker sampai penerima hidup lagi.
 
+Request itu **hilang bersama server**, dan client menerima error tanpa tahu sejauh mana permintaannya sudah dikerjakan.
+
+Yang kami amati di percobaan 3 (`bukti/rpc-03-01-server-mati-di-tengah.png` dan `bukti/rpc-03-02-server-mati-di-tengah.png`):
+
+- **Server sudah menerima dan mengerjakan request.** Di terminal server muncul `[server] proses_pembayaran(user1, 20000) diterima`, lalu `[server] saldo user1 SUDAH DIPOTONG, sisa 30000`, lalu `[server] menyiapkan balasan 5 detik...`. Baris `balasan dikirim` tidak pernah muncul, karena di jeda itu terminal server kami tutup.
+- **Client sedang tertahan.** Panggilan pertama berhasil (`saldo user1 = 50000`), lalu terminal client berhenti di baris `Memanggil proses_pembayaran('user1', 20000) ...` tanpa bisa melakukan hal lain.
+- **Saat server dimatikan, client ikut gagal.** Client mencetak `[!] GAGAL setelah menunggu 10.4 detik` dengan `ConnectionRefusedError: [WinError 10061]`. Tidak ada nilai balik sama sekali, sukses maupun gagal.
+- **Tidak ada yang menyimpan request itu.** Antara client dan server tidak ada perantara, dan saldo hanya disimpan di variabel milik proses server. Begitu proses server mati, request yang sedang dikerjakan ikut hilang dan client harus memanggil ulang sendiri.
+
+Perbandingan dengan percobaan 2: ketika server mati *sebelum* dipanggil, client gagal setelah 4.1 detik dan pasti tidak ada yang diproses. Ketika server mati *di tengah* proses, client sempat menunggu 10.4 detik lalu gagal. Error yang diterima client pada kedua kasus **persis sama** (`ConnectionRefusedError: [WinError 10061]`), padahal keadaannya berbeda: pada kasus kedua saldo sudah dipotong dari 50000 menjadi 30000.
+
+Inilah risiko RPC untuk `proses_pembayaran`: client mengira pembayaran gagal padahal uang sudah terpotong. Kalau client mencoba ulang, saldo bisa terpotong dua kali; kalau tidak, ia mengira pembayaran belum terjadi. Dari pesan error saja client tidak bisa membedakannya.
+
+Bandingkan dengan Jalur B: penerima yang mati tidak membuat pengirim gagal, dan 6 pesan tetap tersimpan di broker sampai penerima hidup lagi.
 
 ## Kendala teknis
 - Kendala yang muncul pada saat kami ingin menggunakan Docker Dekstop, pada saat melakukan install image Rabbitmq terjadi gangguan sehingga kami tidak dapat menjalankan Docker Dekstop pada Vscode/ tidak dapat saling berkomunikasi.
