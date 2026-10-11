@@ -129,7 +129,7 @@ Keputusan kami:
  
 Server (kiri) dan client (kanan) dijalankan berdampingan. Client menunggu **7.0 detik** untuk `cek_saldo` dan **7.1 detik** untuk `proses_pembayaran`: 5 detik kerja server ditambah ± 2 detik membuka koneksi. Selama itu client tidak bisa melakukan hal lain.
  
-![RPC: client menunggu balasan server](bukti/rpc-01-client-menunggu.png)
+![RPC: client menunggu balasan server](bukti/rpc-01-normal.png)
  
 ### 1.3 Uji 2 — Server mati sebelum dipanggil
  
@@ -323,7 +323,6 @@ Modul Pembayaran tidak butuh jawaban dari Kurir. Di uji 2.3, publisher selesai n
 - Broker harus selalu hidup. Kurir boleh mati, tetapi kalau RabbitMQ mati, publisher gagal tersambung.
 - `docker-compose.yml` kami tidak memakai volume, jadi pesan hilang kalau container dihapus (`docker compose down`). Ini tidak kami uji; kami tulis sebagai batasan.
 ---
-
 
 ## Struktur Submission
 
