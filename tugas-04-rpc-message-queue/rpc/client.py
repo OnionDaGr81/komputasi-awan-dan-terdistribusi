@@ -1,24 +1,62 @@
 """
-Tugas 4 - Jalur A: RPC Client (simulasi modul Pesanan)
-Jalankan server.py di terminal lain terlebih dahulu.
+Tugas 4 - Jalur A: RPC Server (simulasi modul Pembayaran)
+Memakai xmlrpc.server dari Python standard library - tidak perlu install apa pun.
 """
 
-import xmlrpc.client
 import time
+from xmlrpc.server import SimpleXMLRPCServer
+
+# Simulasi "database" saldo user
+saldo_user = {
+    "user1": 50000,
+    "user2": 120000,
+}
+
+# Server sengaja dibuat "sibuk" 5 detik per panggilan, supaya terlihat
+# bahwa client ikut menunggu, dan ada waktu untuk mematikan server di tengah proses.
+LAMA_PROSES = 5
+
+
+def cek_saldo(user_id: str) -> float:
+    # TODO 1: kembalikan saldo dari dict `saldo_user`.
+    print(f"[server] cek_saldo({user_id}) diterima, memproses {LAMA_PROSES} detik...")
+    time.sleep(LAMA_PROSES)
+
+    # Keputusan kami: user tidak dikenal -> error, bukan return 0.
+    if user_id not in saldo_user:
+        raise ValueError(f"user {user_id} tidak ditemukan")
+
+    print(f"[server] cek_saldo({user_id}) selesai, balasan dikirim")
+    return saldo_user[user_id]
+
+
+def proses_pembayaran(user_id: str, jumlah: float) -> dict:
+    # TODO 2: validasi saldo cukup, kurangi saldo, kembalikan status.
+    print(f"[server] proses_pembayaran({user_id}, {jumlah}) diterima")
+
+    if user_id not in saldo_user:
+        raise ValueError(f"user {user_id} tidak ditemukan")
+
+    if saldo_user[user_id] < jumlah:
+        return {"status": "gagal", "saldo_akhir": saldo_user[user_id]}
+
+    saldo_user[user_id] = saldo_user[user_id] - jumlah
+    print(f"[server] saldo {user_id} SUDAH DIPOTONG, sisa {saldo_user[user_id]}")
+
+    print(f"[server] menyiapkan balasan {LAMA_PROSES} detik...")
+    time.sleep(LAMA_PROSES)
+
+    print("[server] proses_pembayaran selesai, balasan dikirim")
+    return {"status": "sukses", "saldo_akhir": saldo_user[user_id]}
 
 
 def main():
-    # TODO 1: buat ServerProxy ke http://localhost:8000
-    proxy = None  # ganti dengan xmlrpc.client.ServerProxy(...)
-
-    print("Memanggil cek_saldo('user1') ... menunggu respons sinkron")
-    start = time.time()
-    # TODO 2: panggil proxy.cek_saldo("user1") dan cetak hasilnya + waktu tempuh
-    #         (buktikan client BENAR-BENAR menunggu sampai server membalas)
-
-    print("Memanggil proses_pembayaran('user1', 20000) ...")
-    # TODO 3: panggil proxy.proses_pembayaran("user1", 20000) dan cetak hasilnya
-
+    # TODO 3: buat server di localhost port 8000, daftarkan kedua fungsi, lalu jalankan.
+    server = SimpleXMLRPCServer(("localhost", 8000))
+    server.register_function(cek_saldo)
+    server.register_function(proses_pembayaran)
+    print("RPC server modul Pembayaran berjalan di port 8000...")
+    server.serve_forever()
 
 if __name__ == "__main__":
     main()
