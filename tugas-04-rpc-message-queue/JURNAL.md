@@ -35,7 +35,7 @@ Dari dashboard kami publish `Halo ini bukan json` dan `123`. Consumer mencetak `
 
 1. **Normal.** `server.py` dan `client.py` dijalankan berdampingan. Client menunggu 7.0 detik untuk `cek_saldo` dan 7.1 detik untuk `proses_pembayaran` (5 detik kerja server ditambah ± 2 detik membuka koneksi), lalu menerima saldo 50000 dan hasil `sukses` dengan saldo akhir 30000 (`bukti/rpc-01-client-menunggu.png`).
 2. **Server mati sebelum dipanggil.** `client.py` dijalankan tanpa server: gagal setelah 4.1 detik dengan `ConnectionRefusedError: [WinError 10061]` (`bukti/rpc-02-server-mati.png`).
-3. **Server mati di tengah proses.** Terminal server ditutup (*Kill Terminal*) setelah muncul log `saldo user1 SUDAH DIPOTONG, sisa 30000`, saat client sedang menunggu `proses_pembayaran`: client gagal setelah 10.4 detik dengan `ConnectionRefusedError: [WinError 10061]` (`bukti/rpc-03-01-server-mati-di-tengah.png`, `bukti/rpc-03-02-server-mati-di-tengah.png`).
+3. **Server mati di tengah proses.** Terminal server ditutup (*Kill Terminal*) setelah muncul log `saldo user1 SUDAH DIPOTONG, sisa 30000`, saat client sedang menunggu `proses_pembayaran`: client gagal setelah 10.4 detik dengan `ConnectionRefusedError: [WinError 10061]` ((bukti/rpc-03-01-server-mati-di-tengah.png), (bukti/rpc-03-02-server-mati-di-tengah.png)).
 
 ## Pertanyaan Wajib (Jalur B): ke mana pesan "hilang sementara" tersimpan saat consumer mati?
  
