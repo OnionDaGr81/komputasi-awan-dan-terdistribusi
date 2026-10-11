@@ -48,6 +48,100 @@ Dashboard manajemen RabbitMQ (untuk lihat antrean secara visual) otomatis aktif 
 3. Untuk Jalur B, matikan dulu `consumer.py`, jalankan `publisher.py` beberapa kali, lalu nyalakan `consumer.py` — buktikan pesan **tetap diproses** (tidak hilang) karena antrean menyimpannya. Ini adalah inti pembelajaran *asynchronous decoupling*.
 4. Tulis analisis: kenapa jalur ini (RPC atau MQ) cocok untuk skenario yang kalian pilih, dan apa yang terjadi jika dipakai untuk skenario yang salah (mis. RPC dipakai untuk notifikasi kurir → modul pembayaran ikut lambat kalau kurir down).
 
+## TODO pada jalur yang kami pilih
+
+Bagian # TODO pada publisher.py dan consumer.py telah diselesaikan oleh Anggota 1 dan 2. Kode sudah berjalan sesuai fungsinya. 
+Berikut adalah # TODO pada publisher.py:
+# TODO 1: buat koneksi ke RabbitMQ di localhost (pika.BlockingConnection
+    # dengan ConnectionParameters(host="localhost")), lalu buat channel.
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host="localhost"))
+    channel = connection.channel()
+
+    # TODO 2: deklarasikan queue dengan nama QUEUE_NAME (channel.queue_declare),
+    # gunakan durable=True supaya pesan tidak hilang walau RabbitMQ restart.
+    channel.queue_declare(queue=QUEUE_NAME, durable=True)
+
+    for i in range(1, 4):
+        pesan = {
+            "user_id": f"user{i}",
+            "jumlah": 20000 * i,
+            "timestamp": time.time(),
+        }
+        # TODO 3: publish `pesan` (di-encode json) ke QUEUE_NAME memakai
+        # channel.basic_publish(...). Cetak log "Event terkirim: ..." setiap publish.
+        channel.basic_publish(
+            exchange="",
+            routing_key=QUEUE_NAME,
+            body=json.dumps(pesan),
+            properties=pika.BasicProperties(
+                delivery_mode=pika.DeliveryMode.Persistent  # Pesan disimpan ke disk
+            ),
+        )
+        print(f"[x] Event terkirim: {pesan}")
+        time.sleep(1)
+
+    # TODO 4: tutup koneksi (connection.close()) setelah selesai.
+    connection.close()
+    print("Publisher selesai mengirim event.")
+
+Dan berikut merupakan # TODO pada consumer.py:
+# TODO 1: proses pesan
+    user_id = pesan.get("user_id")
+    jumlah = pesan.get("jumlah")
+    print(f"[x] Kurir menerima notifikasi pembayaran untuk {user_id} sejumlah {jumlah}")
+
+    # TODO 2: kirim acknowledgement supaya pesan dihapus dari antrean
+    ch.basic_ack(delivery_tag=method.delivery_tag)
+
+
+def main():
+    # TODO 3: koneksi, channel, deklarasi queue yang sama, daftarkan callback
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host="localhost"))
+    channel = connection.channel()
+
+    channel.queue_declare(queue=QUEUE_NAME, durable=True)
+
+    # Ambil 1 pesan dulu, baru ambil berikutnya setelah di-ack
+    channel.basic_qos(prefetch_count=1)
+
+    channel.basic_consume(
+        queue=QUEUE_NAME,
+        on_message_callback=callback,
+        auto_ack=False,
+    )
+
+    print("Menunggu event dari antrean 'pembayaran_berhasil'... (Ctrl+C untuk berhenti)")
+
+    # TODO 4: mulai mendengarkan antrean
+    try:
+        channel.start_consuming()
+    except KeyboardInterrupt:
+        print("\nConsumer dihentikan.")
+        channel.stop_consuming()
+    finally:
+        connection.close()
+
+## Bukti program kami benar-benar berjalan
+
+Bukti program berjalan dapat dilihat pada folder bukti/. Terdapat screenshot terminal publisher.py dan consumer.py yang menunjukkan proses pengiriman dan penerimaan pesan.
+
+## Uji pesan tidak hilang
+
+1. Langkah 1: Matikan consumer.py (simulasi Kurir sedang down).
+2. Langkah 2: Jalankan publisher.py beberapa kali.
+3. Bukti 1: Buka dashboard RabbitMQ. Terlihat pesan menumpuk di queue pembayaran_berhasil dengan status Ready: 6. (Sertakan nama file screenshot-nya, misal: bukti/dashboard_menumpuk.png).
+4. Langkah 3: Nyalakan kembali consumer.py.
+5. Bukti 2: Di terminal Consumer, terlihat pesan diproses satu per satu ([x] Kurir menerima notifikasi...). (Sertakan nama file screenshot-nya, misal: bukti/terminal_consumer.png).
+6. Kesimpulan: Tidak ada pesan yang hilang. Ini membuktikan asynchronous decoupling berhasil.
+
+## Hasil analisis pada program
+
+A. Mengapa Message Queue (MQ) Cocok?
+    Karena MQ bersifat asinkron dan decoupling. Modul Pembayaran tidak perlu menunggu balasan dari Kurir. Kalau Kurir sibuk atau mati, pesan tetap aman di queue. Pembayaran tetap responsif.
+
+B. Apa yang Terjadi Jika Pakai RPC?
+    RPC bersifat sinkron (blocking). Jika dipakai untuk notifikasi Kurir, modul Pembayaran akan macet/lambat karena harus menunggu balasan Kurir. Jika Kurir mati, modul Pembayaran ikut error/gagal. Ini melanggar prinsip reliabilitas di studi kasus.
+
 ## Struktur Submission
 
 ```
