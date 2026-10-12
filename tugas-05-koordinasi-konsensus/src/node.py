@@ -82,8 +82,26 @@ class Node:
                 self.send_message(target_port, "OK")
                 # Jalankan start_election di thread terpisah agar tidak menahan thread penerima pesan
                 threading.Thread(target=self.start_election, daemon=True).start()
+        elif msg_type == "OK":
+            # Tandai bahwa ada node lebih tinggi yang masih hidup,
+            # sehingga kita TIDAK boleh mendeklarasikan diri sebagai leader
+            with self.lock:
+                self.received_ok.set()
+                self.ok_received = True
+            print(f"[Node {self.node_id}] Menerima pesan 'OK' dari Node {sender_id}. Ada node lebih tinggi yang aktif.")
+        elif msg_type == "COORDINATOR":
+            # Simpan sender_id sebagai leader_id yang baru
+            with self.lock:
+                self.leader_id = sender_id
+                self.is_electing = False
+            print(f"[Node {self.node_id}] Menerima pesan 'COORDINATOR' dari Node {sender_id}. Leader terpilih: Node {sender_id}")
+        elif msg_type == "PING":
+            # Heartbeat check dari monitor_leader (TODO 4)
+            # Diabaikan dengan aman tanpa menimbulkan error
+            print(f"[Node {self.node_id}] Menerima pesan 'PING' dari Node {sender_id} (heartbeat)")
         else:
-            print(f"[Node {self.node_id}] Menerima pesan '{msg_type}' dari node {sender_id} (TODO: proses ini)")
+            # Pastikan pesan lain diabaikan dengan aman, tidak menimbulkan error
+            print(f"[Node {self.node_id}] Menerima pesan tidak dikenal '{msg_type}' dari Node {sender_id}. Diabaikan.")
 
     def start_election(self):
         """Dipanggil saat node ini mendeteksi leader tidak ada / tidak merespons."""
