@@ -27,6 +27,11 @@ class Node:
         self.leader_id = None
         self.lock = threading.Lock()
 
+        # State bersama untuk Bully Algorithm (disepakati untuk TODO 1 & TODO 2/3)
+        self.received_ok = threading.Event()  # Event penanda balasan OK dari node dengan ID lebih tinggi
+        self.ok_received = False              # Flag boolean penanda balasan OK
+        self.is_electing = False              # Penanda apakah node sedang dalam proses election
+
     # ---------- Infrastruktur jaringan (SUDAH LENGKAP, jangan diubah) ----------
 
     def start_server(self):
