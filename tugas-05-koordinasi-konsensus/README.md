@@ -61,3 +61,76 @@ tugas-05-koordinasi-konsensus/
 Kebijakan **Level 2 (AI Assisted Idea Generation & Structuring)** berlaku — lihat [`../RUBRIK-UMUM.md`](../RUBRIK-UMUM.md). Boleh bertanya ke AI tentang gambaran umum algoritma election; **tidak boleh** meminta AI menuliskan isi `# TODO` di `src/node.py` (logika `on_message`, `start_election`, `declare_leader`, `monitor_leader`). Catat pemakaian AI di "Log Penggunaan AI" pada `JURNAL.md`.
 
 - `README.md` wajib menjelaskan kenapa Bully Algorithm selalu memilih node ber-ID tertinggi yang masih hidup, dan apa kelemahannya dibanding algoritma lain (mis. jumlah pesan yang dikirim saat election, single point of failure sebelum leader baru terpilih) — bukan sekadar definisi generik.
+
+---
+
+# Laporan Analisis & Pembagian Tugas Kelompok
+
+## Bagian 1: Kenapa FoodGo Perlu Leader
+*(Akan dilengkapi oleh Duarte Sebastian Napitupulu)*
+
+---
+
+## Bagian 2: Akar Masalah — Jam Fisik, Logical Clock, dan Urutan Pesanan
+*Penulis: Muhammad Chaesar Pratama (103072400119)*
+
+### 1. Masalah Jam Fisik pada Server FoodGo (Clock Drift, Presisi, dan Akurasi)
+- **Clock Drift**: Jam perangkat keras di setiap server digerakkan oleh kristal kuarsa yang dipengaruhi suhu dan tegangan listrik. Akibatnya, jam Server 1 dan Server 2 tidak berdetik dengan kecepatan yang persis sama dan mengalami pergeseran waktu (*clock drift* dengan laju batas `rho`).
+- **Precision (pi) vs Accuracy (alpha)**: 
+  - *Precision (pi)*: Deviasi waktu antar server di dalam sistem cluster (`|C_i - C_j| <= pi`).
+  - *Accuracy (alpha)*: Deviasi waktu jam server terhadap standar waktu luar/UTC (`|C_i - UTC| <= alpha`).
+- **Dampak pada FoodGo**: Jika dua pelanggan memesan menu yang sama di server berbeda dalam waktu yang berdekatan, perbedaan jam fisik antar server dapat memicu kesalahan stempel waktu (*timestamp*), sehingga urutan pemrosesan pesanan menjadi tertukar.
+
+### 2. Kenapa Sinkronisasi Jam Fisik Saja Tidak Cukup
+- Protokol sinkronisasi jam fisik (seperti NTP) memiliki keterbatasan latensi jaringan (*jitter* dan asimetri transmisi), sehingga selalu ada margin kesalahan waktu.
+- **Poin Kunci (Slide 7)**: Dalam sistem terdistribusi, kebutuhan utama bukanlah mengetahui jam fisik persis (*wall-clock time*), melainkan **kesepakatan urutan kejadian (*agreement on event ordering*)**. Mengetahui apakah Pesanan A masuk *sebelum* Pesanan B jauh lebih penting daripada jam absolutnya.
+
+### 3. Solusi Lamport Logical Clock & Relasi Happened-Before
+- Leslie Lamport (1978) memperkenalkan relasi **happened-before** (`->`):
+  1. Jika event `a` terjadi sebelum `b` pada proses yang sama, maka `a -> b`.
+  2. Jika `a` adalah event pengiriman pesan dan `b` adalah penerimaan pesan tersebut, maka `a -> b`.
+  3. Bersifat transitif: jika `a -> b` dan `b -> c`, maka `a -> c`.
+- **Aturan Pembaruan Clock**:
+  - Setiap event lokal: jam lokal bertambah `C_i = C_i + 1`.
+  - Saat kirim pesan: sertakan nilai `C_i`.
+  - Saat terima pesan: perbarui jam lokal `C_j = max(C_j, C_msg) + 1`.
+  - Jika timestamp sama, Process ID digunakan sebagai penentu urutan (*tie-breaker*).
+
+### 4. Totally Ordered Multicast & Analogi Pesanan FoodGo
+- **Konsep**: Seluruh server mengeksekusi urutan transaksi yang identik dengan mem-broadcast pesan ber-timestamp Lamport dan menempatkannya di antrean lokal. Transaksi hanya dieksekusi jika berada di urutan terdepan dan semua server telah membalas ACK.
+- **Analogi FoodGo**: Pada promo *flash sale* menu sisa 1 porsi, Pelanggan X checkout di Server 1 dan Pelanggan Y checkout di Server 2. Totally ordered multicast memastikan seluruh server memproses dalam urutan yang sama, sehingga tidak terjadi *double booking* atau stok minus.
+
+### 5. Batasan Lamport Clock & Solusi Vector Clock
+- **Kelemahan Lamport**: Hubungannya bersifat satu arah (`a -> b` maka `C(a) < C(b)`). Jika `C(a) < C(b)`, kita tidak bisa memastikan apakah `a` menyebabkan `b`, karena bisa saja kedua event terjadi bersamaan secara independen (*concurrent*).
+- **Vector Clock**: Setiap server memelihara vektor integer `V_i[1..N]`. Dengan vektor ini, sistem dapat membuktikan kausalitas dua arah (`a -> b <=> V(a) < V(b)`) dan mendeteksi secara akurat jika ada konflik pemesanan yang bersifat konkruen.
+
+### 6. Alasan Memilih Koordinator/Leader dibanding Logical Clock di Semua Node
+- **Overhead Jaringan Ringan**: Totally ordered multicast membutuhkan broadcast ke seluruh server dan pengumpulan ACK (`O(N^2)` pesan per transaksi). Dengan adanya Leader, worker cukup berkomunikasi langsung ke Leader (`O(1)` pesan).
+- **Antrean Terpusat FIFO**: Leader bertindak sebagai *single source of truth* untuk nomor urut pesanan tanpa perlu logika antrean terdistribusi yang rumit di tiap node.
+- **Toleransi Kegagalan Otomatis**: Risiko *single point of failure* (SPOF) diselesaikan dengan **Bully Algorithm**. Jika node leader mati, node-node aktif secara otomatis memilih leader baru (ID tertinggi yang hidup) dan sistem segera pulih.
+
+---
+
+## Bagian 3: Kenapa Bully Selalu Memilih ID Tertinggi + Kelemahannya
+*(Akan dilengkapi oleh Duarte Sebastian Napitupulu)*
+
+---
+
+## Bagian 4: Perbandingan Bully vs Ring, ZooKeeper, Raft
+*(Akan dilengkapi oleh Alif Rifqi Pratama)*
+
+---
+
+## Bagian 5: Hasil Skenario Start Normal & Leader Mati + Observasi
+*(Akan dilengkapi oleh Didit Septa Putra)*
+
+---
+
+## Bagian 6: Tabel Kontribusi
+
+| Nama | NIM | Kontribusi |
+|---|---|---|
+| Muhammad Chaesar Pratama | 103072400119 | Implementasi TODO 1 (`on_message`), desain state bersama (`received_ok`, `is_electing`), dan analisis Bagian 2 (Jam Fisik, Logical Clock, dan Urutan Pesanan) |
+| Didit Septa Putra | 103072400071 | Implementasi TODO 4 (`monitor_leader`), pengujian skenario 1 & 2, dokumentasi bukti |
+| Alif Rifqi Pratama | 103072400133 | Implementasi TODO 2 & 3 (`start_election`, `declare_leader`), analisis Bagian 4 (Bully vs Ring, ZooKeeper, Raft) |
+| Duarte Sebastian Napitupulu | 103072400152 | Integrasi kode, analisis Bagian 1 & 3, rekap JURNAL, submission |
