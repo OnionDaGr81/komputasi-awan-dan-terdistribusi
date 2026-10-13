@@ -117,12 +117,12 @@ Kebijakan **Level 2 (AI Assisted Idea Generation & Structuring)** berlaku — li
 ---
 
 ## Bagian 4: Perbandingan Bully vs Ring, ZooKeeper, Raft
-*(Akan dilengkapi oleh Alif Rifqi Pratama)*
+*(Akan dilengkapi oleh Didit Septa Putra)*
 
 ---
 
 ## Bagian 5: Hasil Skenario Start Normal & Leader Mati + Observasi
-*(Akan dilengkapi oleh Didit Septa Putra)*
+*(Akan dilengkapi oleh Alif Rifqi Pratama)*
 
 ---
 
@@ -131,6 +131,6 @@ Kebijakan **Level 2 (AI Assisted Idea Generation & Structuring)** berlaku — li
 | Nama | NIM | Kontribusi |
 |---|---|---|
 | Muhammad Chaesar Pratama | 103072400119 | Implementasi TODO 1 (`on_message`), desain state bersama (`received_ok`, `is_electing`), dan analisis Bagian 2 (Jam Fisik, Logical Clock, dan Urutan Pesanan) |
-| Didit Septa Putra | 103072400071 | Implementasi TODO 4 (`monitor_leader`), pengujian skenario 1 & 2, dokumentasi bukti |
-| Alif Rifqi Pratama | 103072400133 | Implementasi TODO 2 & 3 (`start_election`, `declare_leader`), analisis Bagian 4 (Bully vs Ring, ZooKeeper, Raft) |
+| Didit Septa Putra | 103072400071 | Implementasi TODO 2 & 3 (`start_election`, `declare_leader`), analisis Bagian 4 (Bully vs Ring, ZooKeeper, Raft) 
+| Alif Rifqi Pratama | 103072400133 | Implementasi TODO 4 (`monitor_leader`), pengujian skenario 1 & 2, dokumentasi bukti |
 | Duarte Sebastian Napitupulu | 103072400152 | Integrasi kode, analisis Bagian 1 & 3, rekap JURNAL, submission |
