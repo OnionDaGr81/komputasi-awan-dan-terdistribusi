@@ -172,7 +172,49 @@ class Node:
             # (mis. kirim pesan "PING" atau cukup coba connect). Jika gagal
             # (leader mati) dan node ini belum tahu leader baru, panggil
             # start_election().
+            
+    def monitor_leader(self):
+        """Loop periodik: cek apakah leader masih hidup, trigger election jika mati."""
+        while True:
+            time.sleep(3)
+
+            # TODO 4: periksa leader yang sedang tercatat
+            with self.lock:
+                current_leader = self.leader_id
+
+            # Belum mengetahui leader, tidak perlu melakukan pengecekan
+            if current_leader is None:
+                continue
+
+            # Jika node ini adalah leader, tidak perlu memeriksa dirinya sendiri
+            if current_leader == self.node_id:
+                continue
+
+            # Coba menghubungi leader menggunakan pesan PING
+            target_port = self.peers.get(current_leader)
+
+            if target_port is None:
+                leader_alive = False
+            else:
+                leader_alive = self.send_message(target_port, "PING")
+
+            # Jika leader tidak merespons, mulai election kembali
+            if not leader_alive:
+                with self.lock:
+                    # Periksa ulang agar tidak menghapus informasi leader
+                    # baru yang mungkin diterima selama proses pengecekan
+                    if self.leader_id != current_leader:
+                        continue
+
+                    self.leader_id = None
+
+                print(
+                    f"[Node {self.node_id}] Leader Node {current_leader} "
+                    "tidak merespons. Memulai election baru."
+                )
+                self.start_election()
             pass
+
 
 
 def main():
