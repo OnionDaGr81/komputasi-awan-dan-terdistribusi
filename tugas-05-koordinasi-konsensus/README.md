@@ -119,7 +119,32 @@ Kebijakan **Level 2 (AI Assisted Idea Generation & Structuring)** berlaku — li
 ## Bagian 4: Perbandingan Bully vs Ring, ZooKeeper, Raft
 *(Akan dilengkapi oleh Didit Septa Putra)*
 
----
+### 1. Perbandingan Bully vs Ring
+- **Bully**: Node yang mendeteksi leader mati mengirim ELECTION ke semua node ber-ID lebih besar. Jika tidak ada OK, node itu menjadi leader. Pesannya bisa banyak: sampai 24 untuk 5 node (O(N^2)), tetapi pulihnya cepat.
+- **Ring**: ELECTION dikirim berantai ke tetangga sampai satu putaran penuh. Pesannya lebih sedikit, sekitar 10 untuk 5 node (O(N)), tetapi lebih lambat karena berurutan.
+- **Di FoodGo**: Selama belum ada leader, pesanan baru tidak punya nomor urut. Bully lebih singkat jedanya, Ring lebih hemat pesan. Keduanya memilih leader berdasarkan ID, bukan berdasarkan antrean terbaru.
+
+### 2. Bully vs ZooKeeper
+- **Bully**: Leader dipilih dari ID tertinggi. Node 4 bisa jadi leader walau tidak punya antrean terbaru dari node 5, sehingga pesanan yang sudah bernomor bisa hilang.
+- **ZooKeeper**: Leader dipilih dari transaksi terbaru (zxid), jadi antrean tidak mundur setelah leader mati.
+- **Di FoodGo**: ZooKeeper lebih aman untuk data pesanan, tetapi lebih rumit karena butuh ensemble dan kuorum.
+
+### 3. Bully vs Raft
+- **Bully**: Node menjadi leader sendiri tanpa voting dan tanpa term. Jika jaringan terpecah, dua kelompok bisa punya leader masing-masing.
+- **Raft**: Leader harus dipilih suara mayoritas, punya term, dan timeout acak. Pesanan baru dianggap sah setelah disalin ke mayoritas node.
+- **Di FoodGo**: Raft mencegah dua antrean berjalan bersamaan dan pesanan yang sudah dikonfirmasi tidak hilang, tetapi implementasinya lebih rumit.
+
+### 4. Tabel Perbandingan Bully vs Ring, ZooKeeper, Raft
+
+| Aspek | Bully | Ring | ZooKeeper | Raft |
+|---|---|---|---|---|
+| Dasar pemilihan leader | ID tertinggi yang hidup | ID tertinggi di daftar node hidup | Transaksi terbaru (`zxid`) | Suara mayoritas |
+| Pesan yang dikirim | `ELECTION`, `OK`, `COORDINATOR` | `ELECTION` berantai, lalu pengumuman | Bergantung protokol ensemble | `REQUEST_VOTE`, `VOTE`, heartbeat |
+| Jumlah pesan (5 node) | Hingga 24 (`O(N^2)`) | Sekitar 10 (`O(N)`) | Bergantung protokol | `O(N)` per putaran |
+| Kecepatan election | Cepat | Lebih lambat (berurutan) | Cepat setelah ensemble sepakat | Cepat (timeout acak) |
+| Antrean pesanan FoodGo aman? | Tidak | Tidak | Ya | Ya |
+| Risiko dua leader (split-brain) | Ada | Ada | Tidak | Tidak |
+| Kerumitan implementasi | Rendah | Rendah–sedang | Tinggi | Sedang–tinggi |
 
 ## Bagian 5: Hasil Skenario Start Normal & Leader Mati + Observasi
 *(Akan dilengkapi oleh Alif Rifqi Pratama)*
