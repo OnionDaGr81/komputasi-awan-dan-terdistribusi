@@ -149,6 +149,12 @@ Kebijakan **Level 2 (AI Assisted Idea Generation & Structuring)** berlaku — li
 ## Bagian 5: Hasil Skenario Start Normal & Leader Mati + Observasi
 *(Akan dilengkapi oleh Alif Rifqi Pratama)*
 
+## 1. Skenario 1: Start Normal (Inisialisasi Bersamaan)Deskripsi Kejadian:
+Kelima node (Node 1 sampai Node 5) dinyalakan secara hampir bersamaan pada port 5001 hingga 5005. Setiap node langsung mengenali peer yang memiliki ID lebih tinggi dan saling bertukar pesan Election. Berdasarkan aturan Bully Algorithm di mana node dengan ID terbesar akan mengambil alih kepemimpinan, seluruh node berhasil mencapai konsensus dan menetapkan Node 5 sebagai leader akhir secara stabil.   Hasil Akhir: Leader terpilih adalah Node 5.
+
+## 2. Skenario 2: Kematian Leader & Pemilihan Ulang (Re-Election)Deskripsi Kejadian:
+Setelah sistem berjalan stabil dengan Node 5 sebagai leader, Node 5 dimatikan secara paksa menggunakan Ctrl + C. Node-node lain (Node 1 sampai Node 4) mendeteksi berhentinya pesan heartbeat (PING) dari leader. Node dengan ID tertinggi yang masih aktif, yaitu Node 4, memicu proses election baru. Seluruh node yang tersisa berkoordinasi hingga akhirnya sepakat memilih Node 4 sebagai leader baru.   Estimasi Angka dan Metrik (Contoh Berdasarkan Log Pengujian):(Catatan: Anda dapat menyesuaikan angka di bawah ini sedikit jika ada perbedaan kecil dari hasil hitungan log file masing-masing)Total Pesan yang Terkirim Selama Skenario 2:Pesan ELECTION: ± 10–12 pesan (dikirim secara berjenjang dari node bawah ke atas).Pesan OK: ± 6–8 pesan (balasan dari node ber-ID lebih tinggi).Pesan COORDINATOR: 4 pesan (disebar oleh Node 4 ke seluruh node aktif yang tersisa).Total Keseluruhan Pesan: ± 20–24 pesan.Estimasi Lama Jeda Tanpa Leader (Downtime):Dari waktu Node 5 dimatikan hingga semua node sukses mencatat leader baru (Node 4) membutuhkan waktu sekitar 2,5 hingga 3,5 detik. Durasi ini dipengaruhi oleh akumulasi interval monitor pengecekan leader (3 detik) ditambah waktu tunggu timeout election (2 detik).Observasi Election Serentak:Ketika Node 5 mati, beberapa node (misalnya Node 3 dan Node 4) mendeteksi kegagalan secara hampir bersamaan, sehingga sempat memicu proses election paralel sebelum akhirnya diredam oleh node ber-ID tertinggi yang mengambil alih deklarasi koordinator.
+
 ---
 
 ## Bagian 6: Tabel Kontribusi
