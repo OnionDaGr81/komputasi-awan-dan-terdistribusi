@@ -66,8 +66,16 @@ Kebijakan **Level 2 (AI Assisted Idea Generation & Structuring)** berlaku — li
 
 # Laporan Analisis & Pembagian Tugas Kelompok
 
-## Bagian 1: Kenapa FoodGo Perlu Leader
-*(Akan dilengkapi oleh Duarte Sebastian Napitupulu)*
+## Bagian 1: Kenapa FoodGo Perlu Leader 
+*Duarte Sebastian N (103072400152)*
+Masalah di studi kasus bukan sekadar "jam server salah". Masalahnya, **dua server sama-sama berhak memberi urutan** pada pesanan. Server A mencatat pesanan X lebih dulu, server B mencatat pesanan Y lebih dulu, dan tidak ada pihak yang berwenang memutuskan mana yang benar. Akibatnya bisa berupa:
+ 
+- **Pemrosesan ganda**: dua server sama-sama mengambil pesanan yang sama dari antreannya masing-masing, sehingga satu pesanan dimasak atau dikirim dua kali.
+- **Stok tidak konsisten**: pada menu sisa 1 porsi, kedua server sama-sama menganggap pelanggannya yang pertama, sehingga stok menjadi minus.
+- **Urutan berbeda di tiap server**: laporan, nomor antrean, dan status pesanan tidak bisa dicocokkan.
+Leader menghilangkan sumber konflik itu dengan satu aturan sederhana: **hanya leader yang boleh memberi nomor urut pesanan**. Server lain meneruskan pesanan ke leader, leader menaruhnya di satu antrean pusat (FIFO), lalu memberi nomor 1, 2, 3, dan seterusnya. Karena hanya ada satu pemberi nomor, urutan tidak lagi bergantung pada jam fisik masing-masing server. Bagian 2 menjelaskan kenapa sinkronisasi jam saja tidak cukup dan kenapa pendekatan ini lebih ringan dibanding totally ordered multicast.
+ 
+Konsekuensinya, leader menjadi **titik tunggal**. Kalau leader mati, tidak ada yang boleh memberi nomor urut sampai leader baru terpilih. Karena itu FoodGo butuh mekanisme pemilihan ulang otomatis, dan tugas ini memakai Bully Algorithm. Bagian 3 membahas kenapa Bully selalu memilih ID tertinggi beserta harga yang harus dibayar.
 
 ---
 
@@ -112,12 +120,52 @@ Kebijakan **Level 2 (AI Assisted Idea Generation & Structuring)** berlaku — li
 ---
 
 ## Bagian 3: Kenapa Bully Selalu Memilih ID Tertinggi + Kelemahannya
-*(Akan dilengkapi oleh Duarte Sebastian Napitupulu)*
+*Duarte Sebastian N (103072400152)*
+
+### 1. Kenapa yang menang selalu ID tertinggi yang masih hidup
+ 
+Ada dua aturan di `node.py` yang membuat hasilnya pasti:
+ 
+1. **Node hanya boleh menyatakan diri leader kalau tidak ada satu pun node lebih tinggi yang membalas `OK`** (`start_election`). Selama masih ada node lebih tinggi yang hidup, node itu pasti membalas `OK` dan menjalankan election-nya sendiri (`on_message`, cabang `ELECTION`).
+2. **`COORDINATOR` dari node yang ID-nya lebih rendah ditolak**, lalu penerimanya memulai election sendiri (`on_message`, cabang `COORDINATOR`).
+Dari aturan 1, election "naik" dari node rendah ke node tinggi. Setiap node yang masih punya atasan hidup akan mundur. Rantai ini baru berhenti di node yang tidak punya atasan hidup, yaitu node ber-ID tertinggi yang masih hidup. Hanya node itu yang lolos dari timeout tanpa `OK`, jadi hanya node itu yang berhak broadcast `COORDINATOR`.
+ 
+Aturan 2 menangani kasus ketika node rendah **sempat** menang karena node lebih tinggi belum menyala. Kasus ini benar-benar terjadi di skenario 1 kami. Node 1 menyala paling awal, semua `ELECTION`-nya gagal, lalu ia menyatakan diri leader pada `20:11:03.230`. `COORDINATOR` dari Node 1 kemudian ditolak oleh Node 2, 3, 4, dan 5 ("Menolak 'COORDINATOR' dari Node 1 (ID lebih rendah)"). Node 5 lalu mengulang deklarasi dan menjadi leader akhir. Inilah arti nama "bully": node yang lebih besar selalu mengambil alih.
+ 
+### 2. Kelemahan Bully, dibuktikan dari log kami
+ 
+**a. Jumlah pesan banyak, O(N²).** Kalau semua node yang tersisa ikut mendeteksi kematian leader, setiap node `i` mengirim `ELECTION` ke semua node di atasnya, dan setiap node membalas `OK` ke semua node di bawahnya. Untuk skenario 2 (Node 1–4 hidup, Node 5 mati):
+ 
+| Pesan | Rumus | Prediksi | Hasil log kami |
+|---|---|---|---|
+| `ELECTION` | 4 + 3 + 2 + 1 | 10 | 6 terkirim + 4 gagal (ke Node 5 yang mati) = **10** |
+| `OK` | 0 + 1 + 2 + 3 | 6 | **6** |
+| `COORDINATOR` | N − 1 | 4 | 3 terkirim + 1 gagal = **4**, ditambah 1 kirim ulang ke Node 1 |
+| **Total** | | **20** | **21** |
+ 
+Angka log cocok persis dengan kasus terburuk, karena keempat node mendeteksi kematian Node 5 hampir bersamaan (lihat Bagian 5). Padahal hanya satu pesan yang benar-benar dibutuhkan, yaitu "Node 4 adalah leader". Sisanya overhead koordinasi. Dengan 5 node angka ini masih kecil, tetapi jumlahnya tumbuh kuadratik: untuk 50 server FoodGo, kasus terburuknya sudah ribuan pesan dalam satu kali election.
+ 
+**b. Ada jeda tanpa leader.** Selama election berlangsung, tidak ada yang boleh memberi nomor urut pesanan. Di skenario 2 kami, jeda itu terdiri dari:
+- 0–3 detik sampai kematian terdeteksi (interval `monitor_leader`)
+- sekitar 4,2 detik dari deteksi pertama sampai Node 4 menyatakan diri leader
+- sekitar 7,3 detik dari deteksi pertama sampai semua node tahu leader baru
+Bagi FoodGo, pesanan yang masuk selama jeda ini harus ditahan atau ditolak. Kalau server diam-diam tetap memberi nomor sendiri, konflik urutan dari studi kasus muncul lagi.
+ 
+**c. Leader dipilih berdasarkan ID, bukan berdasarkan data terbaru.** Node 4 menang hanya karena ID-nya 4. Bully tidak memeriksa apakah antrean pesanan Node 4 sudah sama dengan antrean terakhir milik Node 5. Kalau Node 5 sudah memberi nomor ke pesanan yang belum tersalin ke Node 4, pesanan itu bisa hilang atau bernomor ganda setelah pergantian leader. ZooKeeper dan Raft menangani ini (Bagian 4).
+ 
+**d. Deteksi kegagalan hanya berdasarkan timeout.** Node dianggap mati kalau `PING` atau `ELECTION` tidak tersambung. Node yang hanya lambat, atau terputus sebagian jaringannya, akan dianggap mati. Ada dua akibatnya:
+- **Split-brain**: kalau jaringan terbelah, setiap kelompok memilih leader sendiri, sehingga ada dua antrean FoodGo yang memberi nomor bersamaan.
+- **Leader berganti-ganti**: kalau Node 5 hidup lagi, ia langsung mem-bully Node 4 dan memicu election baru, padahal Node 4 baik-baik saja.
+**e. Leader sementara yang salah saat start.** Skenario 1 memperlihatkan Node 1 sempat menjadi leader beberapa detik sebelum di-bully Node 5. Di sistem nyata, setiap pergantian seperti ini adalah satu kali jeda tambahan tanpa leader yang stabil.
+ 
+### 3. Kenapa tetap memakai Bully di tugas ini
+ 
+Bully sederhana, tidak butuh mayoritas suara, dan cocok untuk lingkungan simulasi yang tertutup (5 proses di satu laptop, tanpa partisi jaringan). Untuk FoodGo di produksi, kelemahan c dan d berbahaya karena menyangkut data pesanan. Pilihan yang lebih aman adalah Raft atau ZooKeeper, sesuai perbandingan di Bagian 4.
 
 ---
 
 ## Bagian 4: Perbandingan Bully vs Ring, ZooKeeper, Raft
-*(Akan dilengkapi oleh Didit Septa Putra)*
+*(Didit Septa Putra)*
 
 ### 1. Perbandingan Bully vs Ring
 - **Bully**: Node yang mendeteksi leader mati mengirim ELECTION ke semua node ber-ID lebih besar. Jika tidak ada OK, node itu menjadi leader. Pesannya bisa banyak: sampai 24 untuk 5 node (O(N^2)), tetapi pulihnya cepat.
@@ -147,13 +195,84 @@ Kebijakan **Level 2 (AI Assisted Idea Generation & Structuring)** berlaku — li
 | Kerumitan implementasi | Rendah | Rendah–sedang | Tinggi | Sedang–tinggi |
 
 ## Bagian 5: Hasil Skenario Start Normal & Leader Mati + Observasi
-*(Akan dilengkapi oleh Alif Rifqi Pratama)*
+*(Alif Rifqi Pratama)*
 
-## 1. Skenario 1: Start Normal (Inisialisasi Bersamaan)Deskripsi Kejadian:
-Kelima node (Node 1 sampai Node 5) dinyalakan secara hampir bersamaan pada port 5001 hingga 5005. Setiap node langsung mengenali peer yang memiliki ID lebih tinggi dan saling bertukar pesan Election. Berdasarkan aturan Bully Algorithm di mana node dengan ID terbesar akan mengambil alih kepemimpinan, seluruh node berhasil mencapai konsensus dan menetapkan Node 5 sebagai leader akhir secara stabil.   Hasil Akhir: Leader terpilih adalah Node 5.
+### Ringkasan implementasi yang diuji
+ 
+| Aturan Bully | Di `src/node.py` |
+|---|---|
+| 1. Kirim `ELECTION` ke node ber-ID lebih besar | `start_election()` mengirim ke semua `pid > node_id` |
+| 2. Ada `OK` → berhenti, tunggu `COORDINATOR` | `received_ok` (Event); tunggu `coordinator_received` maks. 4 detik, lalu ulang election kalau tidak datang |
+| 3. Tidak ada `OK` dalam 2 detik → jadi leader | `ELECTION_TIMEOUT = 2.0` → `declare_leader()` broadcast `COORDINATOR` |
+| 4. Semua node mencatat leader | Handler `COORDINATOR` menyimpan `leader_id`; `COORDINATOR` dari ID lebih rendah ditolak |
+| Deteksi leader mati | `monitor_leader()` mengirim `PING` ke leader setiap 3 detik |
+ 
+Setiap baris log diberi timestamp `HH:MM:SS.mmm` supaya durasi bisa diukur.
+ 
+### 1. Skenario 1: Start Normal
+ 
+**Bukti:** `bukti/skenario1/log_node1..5.txt`, `bukti/skenario1/bukti_skenario1.png`
 
-## 2. Skenario 2: Kematian Leader & Pemilihan Ulang (Re-Election)Deskripsi Kejadian:
-Setelah sistem berjalan stabil dengan Node 5 sebagai leader, Node 5 dimatikan secara paksa menggunakan Ctrl + C. Node-node lain (Node 1 sampai Node 4) mendeteksi berhentinya pesan heartbeat (PING) dari leader. Node dengan ID tertinggi yang masih aktif, yaitu Node 4, memicu proses election baru. Seluruh node yang tersisa berkoordinasi hingga akhirnya sepakat memilih Node 4 sebagai leader baru.   Estimasi Angka dan Metrik (Contoh Berdasarkan Log Pengujian):(Catatan: Anda dapat menyesuaikan angka di bawah ini sedikit jika ada perbedaan kecil dari hasil hitungan log file masing-masing)Total Pesan yang Terkirim Selama Skenario 2:Pesan ELECTION: ± 10–12 pesan (dikirim secara berjenjang dari node bawah ke atas).Pesan OK: ± 6–8 pesan (balasan dari node ber-ID lebih tinggi).Pesan COORDINATOR: 4 pesan (disebar oleh Node 4 ke seluruh node aktif yang tersisa).Total Keseluruhan Pesan: ± 20–24 pesan.Estimasi Lama Jeda Tanpa Leader (Downtime):Dari waktu Node 5 dimatikan hingga semua node sukses mencatat leader baru (Node 4) membutuhkan waktu sekitar 2,5 hingga 3,5 detik. Durasi ini dipengaruhi oleh akumulasi interval monitor pengecekan leader (3 detik) ditambah waktu tunggu timeout election (2 detik).Observasi Election Serentak:Ketika Node 5 mati, beberapa node (misalnya Node 3 dan Node 4) mendeteksi kegagalan secara hampir bersamaan, sehingga sempat memicu proses election paralel sebelum akhirnya diredam oleh node ber-ID tertinggi yang mengambil alih deklarasi koordinator.
+![Bukti skenario 1](bukti/bukti_skenario1.png)
+ 
+**Hasil: leader akhir adalah Node 5**, dan kelima node sepakat.
+ 
+| Node | Catatan terakhir |
+|---|---|
+| 5 | `SAYA LEADER` (20:11:02.601, diulang 20:11:07.308) |
+| 1 | 20:11:08.320 `Leader terpilih: Node 5` |
+| 2 | 20:11:09.322 `Leader terpilih: Node 5` |
+| 3 | 20:11:10.350 `Leader terpilih: Node 5` |
+| 4 | 20:11:11.380 `Leader terpilih: Node 5` |
+ 
+**Kronologi:**
+1. Kelima node dinyalakan berjeda sekitar 2 detik (Node 1 pukul 20:10:53, Node 5 sekitar 20:11:01). Jadi start-nya tidak benar-benar bersamaan.
+2. Node 1 mengirim `ELECTION` ke Node 2–5 saat node-node itu belum hidup, sehingga semuanya gagal. Setelah timeout, Node 1 menyatakan diri leader (20:11:03.230).
+3. Sementara itu, election dari Node 2, 3, dan 4 sudah naik sampai Node 5. Node 5 menjadi leader pada 20:11:02.601.
+4. `COORDINATOR` dari Node 1 **ditolak** oleh Node 2 (04.235), Node 3 (05.263), Node 4 (06.280), dan Node 5 (07.308), karena ID Node 1 lebih rendah.
+5. Node 5 mengulang deklarasi leader, dan semua node mencatat Node 5 paling lambat pukul 20:11:11.380.
+
+Sebagai pembanding, bagian awal log `bukti/skenario2/` (20:19:21–20:19:31) adalah start yang lebih rapat. Di run itu tidak ada node rendah yang sempat menjadi leader: Node 5 langsung menang (20:19:27.671), dan Node 1–4 mencatatnya antara 20:19:28.673 dan 20:19:29.216.
+ 
+### 2. Skenario 2: Leader Mati
+ 
+**Bukti:** `bukti/skenario2/log_node1..5.txt`, [bukti_skenario2-terminal_node4.png](bukti/bukti_skenario2-terminal_node4.png) (Node 4 menjadi leader), [bukti_skenario2-terminal_node5.png](bukti/bukti_skenario2-terminal_node5.png) (Node 5 dimatikan dengan Ctrl+C)
+
+![Bukti skenario 2 - terminal node 5 dimatikan](bukti/bukti_skenario2-terminal_node5.png)
+ 
+![Bukti skenario 2 - terminal node 4 jadi leader](bukti/bukti_skenario2-terminal_node4.png)
+ 
+**Hasil: Node 4 terpilih otomatis sebagai leader baru.**
+ 
+| Node | Deteksi Node 5 mati | Catatan leader baru |
+|---|---|---|
+| 2 | 20:21:33.417 (pertama) | 20:21:39.669 `Leader terpilih: Node 4` |
+| 4 | 20:21:33.593 | 20:21:37.625 `SAYA LEADER` |
+| 1 | 20:21:35.878 | 20:21:38.638 `Leader terpilih: Node 4` |
+| 3 | 20:21:35.970 (sudah ikut election sejak 35.440 karena `ELECTION` dari Node 2) | 20:21:40.679 `Leader terpilih: Node 4` |
+ 
+**Waktu kill.** Node 5 dimatikan dengan Ctrl+C sesaat sebelum 20:21:33.417 (deteksi pertama). Perintah `date` di terminal Node 5 mencatat 20:21:35.005, tetapi jam itu terlambat karena baru diketik setelah Ctrl+C. Karena itu deteksi pertama kami pakai sebagai titik acuan. Log Node 5 berhenti di 20:19:31 karena traceback `KeyboardInterrupt` tidak ikut tersimpan oleh `tee`; matinya Node 5 terlihat di [bukti_skenario2-terminal_node5.png](bukti/bukti_skenario2-terminal_node5.png).
+ 
+**Durasi tanpa leader:**
+- deteksi pertama → Node 4 menyatakan diri leader: **≈ 4,2 detik**
+- deteksi pertama → semua node mencatat Node 4: **≈ 7,3 detik**
+- ditambah 0–3 detik antara kill dan deteksi (interval monitor), yang tidak terukur dari log
+**Jumlah pesan setelah Node 5 mati:**
+ 
+| Pesan | Terkirim | Gagal (ke Node 5) |
+|---|---|---|
+| `ELECTION` | 6 | 4 |
+| `OK` | 6 | – |
+| `COORDINATOR` | 4 (3 broadcast + 1 kirim ulang ke Node 1) | 1 |
+| **Total** | **16** | **5** |
+ 
+### 3. Observasi
+ 
+1. **Election serentak.** Keempat node mendeteksi kematian Node 5 dalam rentang sekitar 2,5 detik dan semuanya menjalankan election. Karena itu jumlah pesan sama persis dengan prediksi kasus terburuk Bully (Bagian 3).
+2. **Node 4 menang lewat timeout.** Node 4 mendeteksi sendiri (33.593), mengirim `ELECTION` ke Node 5 dan gagal (35.611), lalu menunggu 2 detik tanpa `OK` dan menyatakan diri leader (37.625). Rantai waktunya: deteksi + 2 detik koneksi gagal + 2 detik timeout.
+3. **Pesan yang terlambat.** Node 1 sudah menerima `COORDINATOR` dari Node 4 (38.638) tetapi masih menyelesaikan pengiriman `ELECTION`-nya. Node 4 membalas dengan `OK` lalu mengirim ulang `COORDINATOR` (40.974). Pesan ini sebenarnya tidak perlu dan menjadi contoh overhead Bully.
+4. **Koneksi lambat di Windows.** Di laptop kami, setiap koneksi TCP ke node hidup butuh sekitar 1 detik, dan ke node mati sekitar 2 detik. Dugaan kami, `localhost` di Windows dicoba lewat IPv6 (`::1`) dulu sebelum jatuh ke IPv4. Kami tidak mengubahnya karena berada di bagian infrastruktur skeleton. Efek inilah yang membuat broadcast `COORDINATOR` Node 4 butuh sekitar 3 detik untuk sampai ke Node 3 dan memperpanjang downtime.
+5. **Penolakan `COORDINATOR` bekerja.** Di skenario 1, node yang lebih tinggi tidak lagi tunduk pada Node 1. Ini berbeda dengan run sebelum perbaikan, ketika Node 5 sempat mencatat Node 2 sebagai leader (lihat `JURNAL.md`).
 
 ---
 
@@ -162,6 +281,6 @@ Setelah sistem berjalan stabil dengan Node 5 sebagai leader, Node 5 dimatikan se
 | Nama | NIM | Kontribusi |
 |---|---|---|
 | Muhammad Chaesar Pratama | 103072400119 | Implementasi TODO 1 (`on_message`), desain state bersama (`received_ok`, `is_electing`), dan analisis Bagian 2 (Jam Fisik, Logical Clock, dan Urutan Pesanan) |
-| Didit Septa Putra | 103072400071 | Implementasi TODO 2 & 3 (`start_election`, `declare_leader`), analisis Bagian 4 (Bully vs Ring, ZooKeeper, Raft) 
+| Didit Septa Putra | 103072400071 | Implementasi TODO 2 & 3 (`start_election`, `declare_leader`), analisis Bagian 4 (Bully vs Ring, ZooKeeper, Raft)|
 | Alif Rifqi Pratama | 103072400133 | Implementasi TODO 4 (`monitor_leader`), pengujian skenario 1 & 2, dokumentasi bukti |
 | Duarte Sebastian Napitupulu | 103072400152 | Integrasi kode, analisis Bagian 1 & 3, rekap JURNAL, submission |
