@@ -55,3 +55,37 @@ tugas-06-penamaan-dht/
 Kebijakan **Level 2 (AI Assisted Idea Generation & Structuring)** berlaku — lihat [`../RUBRIK-UMUM.md`](../RUBRIK-UMUM.md). Boleh bertanya konsep umum consistent hashing/Chord ke AI; **tidak boleh** meminta AI menuliskan isi `# TODO` di `src/chord_simulation.py` (`find_successor`, `join`, `leave`, dst). Catat pemakaian AI di "Log Penggunaan AI" pada `JURNAL.md`.
 
 - `README.md` wajib menelusuri manual (langkah demi langkah) bagaimana `lookup()` menemukan successor untuk salah satu ID Kurir contoh yang dipakai di `chord_simulation.py` — bukan cuma menempelkan output program.
+
+
+---
+
+## Penelusuran Manual lookup()
+
+*Penulis: Muhammad Chaesar Pratama (103072400119)*
+
+Berikut penelusuran manual pencarian successor pada ring Chord DHT dengan ruang identifier 0–255 ($m = 8$ bit). Nilai hash dihitung menggunakan SHA-1 modulo 256.
+
+### 1. Hash Node pada Ring Awal
+Empat node awal yang bergabung beserta hasil hash-nya:
+- `node-bandung-1` $\to$ **40**
+- `node-jakarta-2` $\to$ **102**
+- `node-surabaya-1` $\to$ **136**
+- `node-jakarta-1` $\to$ **177**
+
+Urutan posisi node di ring: **[40, 102, 136, 177]**
+
+### 2. Penelusuran Langkah demi Langkah untuk `kurir-001`
+1. **Hitung hash key:**
+   `hash_id("kurir-001")` menghasilkan nilai **50**.
+2. **Cari successor:**
+   Successor dicari dengan memilih node pertama yang nilainya $\ge$ hash key (50) pada urutan ring:
+   - Cek Node 40: $40 \ge 50$ (False, lanjut ke node berikutnya)
+   - Cek Node 102: $102 \ge 50$ (True, kondisi terpenuhi)
+3. **Hasil:**
+   Successor dari `kurir-001` adalah **Node 102** (`node-jakarta-2`). Data mapping IP `kurir-001` disimpan dan di-lookup dari node ini.
+
+### 3. Penelusuran Kasus Lain
+- **Key lebih kecil dari node pertama (`kurir-002`):**
+  Hash `kurir-002` bernilai **28**. Karena $40 \ge 28$, successor-nya langsung jatuh ke **Node 40**.
+- **Wrap-around (key lebih besar dari semua node):**
+  Jika terdapat key dengan hash **200**, seluruh node di ring ($40, 102, 136, 177$) nilainya lebih kecil dari 200. Karena topologi ring berbentuk lingkaran, pencarian berputar kembali ke node terkecil yaitu **Node 40**.
