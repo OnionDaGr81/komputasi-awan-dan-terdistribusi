@@ -75,14 +75,36 @@ class ChordRing:
         key_hash = hash_id(kurir_id)
         # TODO 7: panggil find_successor(key_hash) untuk menentukan node
         # penanggung jawab, lalu simpan (kurir_id, ip_kurir) ke self.data[key_hash].
-        pass
+        target_node = self.find_successor(key_hash)
+        if target_node is None:
+            print(f"[Register Gagal] Ring masih kosong untuk kurir '{kurir_id}'")
+            return
+
+        # Cek tabrakan hash antar-kurir berbeda di ruang 0-255
+        if key_hash in self.data and self.data[key_hash][0] != kurir_id:
+            old_kurir = self.data[key_hash][0]
+            print(f"[Peringatan] Tabrakan hash antara {kurir_id} dan {old_kurir} pada hash {key_hash}")
+
+        # Simpan atau perbarui IP kurir jika berubah
+        self.data[key_hash] = (kurir_id, ip_kurir)
+        print(f"[Register] Kurir '{kurir_id}' (hash={key_hash}) disimpan di Node {target_node} -> IP: {ip_kurir}")
 
     def lookup(self, kurir_id: str) -> str | None:
         """Cari alamat IP terkini untuk sebuah ID Kurir."""
         key_hash = hash_id(kurir_id)
         # TODO 8: gunakan find_successor(key_hash) untuk menemukan node
         # penanggung jawab, lalu kembalikan ip_kurir dari self.data jika ada.
-        pass
+        target_node = self.find_successor(key_hash)
+        if target_node is None:
+            return None
+
+        # Kembalikan IP jika kurir terdaftar, selain itu None
+        if key_hash in self.data:
+            stored_id, ip_kurir = self.data[key_hash]
+            if stored_id == kurir_id:
+                return ip_kurir
+
+        return None
 
 
 def main():
