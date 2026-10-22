@@ -50,13 +50,25 @@ class ChordRing:
         # node ini, pindahkan ke successor tersebut.
         print(f"[TODO] Node '{node_name}' (id={node_id}) keluar dari ring")
 
-    def find_successor(self, key_hash: int) -> int:
+    def find_successor(self, key_hash: int) -> int | None:
         """Cari node_id dengan nilai hash TERKECIL yang >= key_hash
         (successor menurut aturan Chord). Jika tidak ada, wrap-around
         ke node dengan hash terkecil di ring (karena ring melingkar)."""
         # TODO 6: implementasikan logika successor di atas menggunakan
         # self.nodes.keys(). Kembalikan node_id (bukan IP).
-        pass
+        if not self.nodes:
+            return None
+
+        # Urutkan ID node dari kecil ke besar
+        sorted_nodes = sorted(self.nodes.keys())
+
+        # Cari node pertama yang nilainya >= key_hash
+        for node_id in sorted_nodes:
+            if node_id >= key_hash:
+                return node_id
+
+        # Kalau key lebih besar dari semua node, wrap-around ke node terkecil
+        return sorted_nodes[0]
 
     def register_kurir(self, kurir_id: str, ip_kurir: str):
         """Simpan mapping ID Kurir -> IP di node yang bertanggung jawab."""
