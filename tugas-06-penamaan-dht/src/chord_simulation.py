@@ -76,10 +76,41 @@ class ChordRing:
         berpindah ke successor-nya."""
         node_id = hash_id(node_name)
 
+        # Node harus memang ada di ring
+        if node_id not in self.nodes:
+            print(f"[Peringatan] Node '{node_name}' (id={node_id}) tidak ada di ring. Leave dibatalkan.")
+            return
+
+        # Node terakhir keluar: ring jadi kosong, data tidak punya penanggung jawab
+        if len(self.nodes) == 1:
+            del self.nodes[node_id]
+            print(f"[Leave] Node '{node_name}' (id={node_id}) adalah node terakhir, ring kosong. "
+                  f"{len(self.data)} key tidak punya penanggung jawab.")
+            return
+
+        # Cari predecessor (dipakai untuk menentukan rentang key yang dipegang node ini)
+        others = sorted(i for i in self.nodes if i != node_id)
+        preds = [i for i in others if i < node_id]
+        pred = preds[-1] if preds else others[-1]   # wrap-around jika node ini yang terkecil
+
+        # Key yang dipegang node ini = rentang (pred, node_id]
+        held = [h for h in self.data if in_range(h, pred, node_id)]
+
         # TODO 4: hapus node_id dari self.nodes.
-        # TODO 5: cari successor BARU untuk tiap key yang tadinya dipegang
-        # node ini, pindahkan ke successor tersebut.
-        print(f"[TODO] Node '{node_name}' (id={node_id}) keluar dari ring")
+        del self.nodes[node_id]
+
+        # TODO 5: successor BARU dicari setelah node dihapus, sehingga
+        # find_successor() otomatis melompat ke node berikutnya di ring.
+        new_succ = self.find_successor(node_id)
+
+        print(f"[Leave] Node '{node_name}' (id={node_id}) keluar dari ring, "
+              f"pred={pred}, successor baru={new_succ}")
+        if not held:
+            print("       Tidak ada key yang berpindah")
+        for h in held:
+            # self.data tidak perlu diubah: key hash tetap sama, yang berubah hanya
+            # node penanggung jawab hasil find_successor().
+            print(f"       Key hash={h} ({self.data[h][0]}): Node {node_id} -> Node {new_succ}")
 
     def find_successor(self, key_hash: int) -> int | None:
         """Cari node_id dengan nilai hash TERKECIL yang >= key_hash
@@ -166,10 +197,22 @@ def main():
     print("kurir-001 ->", ring.lookup("kurir-001"))
 
     print("\n--- Sebuah node keluar ---")
+    # Node 177 memegang rentang (136, 177]. Tidak ada kurir awal di rentang itu,
+    # jadi didaftarkan kurir-005 (hash 175) supaya perpindahan saat leave terlihat.
+    ring.register_kurir("kurir-005", "192.168.1.14")
+    kurir = "kurir-005"
+    h = hash_id(kurir)
+    print(f"SEBELUM leave: {kurir} (hash={h}) -> Node {ring.find_successor(h)}, IP {ring.lookup(kurir)}")
     ring.leave("node-jakarta-1")
+    print(f"SESUDAH leave: {kurir} (hash={h}) -> Node {ring.find_successor(h)}, IP {ring.lookup(kurir)}")
     print("kurir-001 ->", ring.lookup("kurir-001"))
     print("kurir-002 ->", ring.lookup("kurir-002"))
-    
+
+    print("\n--- Pemetaan akhir ---")
+    for kid in ["kurir-001", "kurir-002", "kurir-003", "kurir-005", "kurir-012"]:
+        kh = hash_id(kid)
+        print(f"{kid} (hash={kh}) -> Node {ring.find_successor(kh)}, IP {ring.lookup(kid)}")
+
 
 if __name__ == "__main__":
     main()

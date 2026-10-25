@@ -59,6 +59,46 @@ Kebijakan **Level 2 (AI Assisted Idea Generation & Structuring)** berlaku — li
 
 ---
 
+## 3. Apa yang terjadi saat node keluar?
+ 
+**Skenario.** `node-jakarta-1` (id 177) keluar dari ring. Node ini memegang rentang `(136, 177]`. Pada data awal tidak ada kurir di rentang itu (hash yang ada: 28, 50, 116, 132), sehingga leave tidak akan memperlihatkan perpindahan apa pun. Karena itu sebelum leave kami mendaftarkan `kurir-005` (hash 175), yang jatuh di rentang Node 177.
+ 
+**Output program** (`bukti/output-lengkap-leave.txt`):
+ 
+```
+--- Sebuah node keluar ---
+[Register] Kurir 'kurir-005' (hash=175) disimpan di Node 177 -> IP: 192.168.1.14
+SEBELUM leave: kurir-005 (hash=175) -> Node 177, IP 192.168.1.14
+[Leave] Node 'node-jakarta-1' (id=177) keluar dari ring, pred=136, successor baru=40
+       Key hash=175 (kurir-005): Node 177 -> Node 40
+SESUDAH leave: kurir-005 (hash=175) -> Node 40, IP 192.168.1.14
+kurir-001 -> 192.168.1.10
+kurir-002 -> 192.168.1.11
+```
+ 
+**Siapa yang mengambil alih?** Successor dari node yang keluar, yaitu node berikutnya searah jarum jam. Setelah 177 dihapus, ring menjadi `[40, 102, 123, 136]`. Untuk key 175:
+1. Cek Node 40: 40 ≥ 175? Tidak.
+2. Cek Node 102: 102 ≥ 175? Tidak.
+3. Cek Node 123: 123 ≥ 175? Tidak.
+4. Cek Node 136: 136 ≥ 175? Tidak.
+5. Tidak ada node ≥ 175, maka **wrap-around** ke node terkecil: **Node 40**.
+Rentang Node 40 melebar dari `(177, 40]` menjadi `(136, 40]`, karena predecessor-nya sekarang Node 136.
+ 
+**Yang tidak berubah:**
+- IP `kurir-005` tetap 192.168.1.14; yang berubah hanya node penanggung jawabnya, jadi `lookup()` tetap berhasil.
+- Kurir lain tidak berpindah: `kurir-001` tetap di Node 102, `kurir-002` tetap di Node 40, `kurir-003` di Node 136, `kurir-012` di Node 123. Hanya key di rentang node yang keluar yang terdampak.
+| Kurir | Hash | Sebelum leave | Sesudah leave |
+|---|---|---|---|
+| kurir-005 | 175 | Node 177 | **Node 40** (wrap-around) |
+| kurir-003 | 132 | Node 136 | Node 136 (tidak berubah) |
+| kurir-012 | 116 | Node 123 | Node 123 (tidak berubah) |
+| kurir-001 | 50 | Node 102 | Node 102 (tidak berubah) |
+| kurir-002 | 28 | Node 40 | Node 40 (tidak berubah) |
+ 
+**Catatan implementasi.** Di `leave()`, rentang key yang dipegang node dihitung dulu dengan `in_range(h, pred, node_id)` *sebelum* node dihapus. Setelah `del self.nodes[node_id]`, `find_successor(node_id)` dipanggil untuk mendapat successor baru; karena node itu sudah tidak ada, fungsi otomatis melompat ke node berikutnya (termasuk wrap-around). `self.data` tidak perlu diubah karena di simulasi ini penanggung jawab key selalu ditentukan ulang oleh `find_successor()`. Ini sama dengan asumsi Chord bahwa node yang keluar baik-baik menyerahkan datanya ke successor sebelum pergi.
+ 
+---
+
 ## Penelusuran Manual lookup()
 
 *Penulis: Muhammad Chaesar Pratama (103072400119)*

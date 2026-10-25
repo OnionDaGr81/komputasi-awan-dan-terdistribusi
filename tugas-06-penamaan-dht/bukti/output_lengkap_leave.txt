@@ -1,0 +1,38 @@
+[Join] Node 'node-jakarta-1' (id=177) adalah node pertama, ring dibuat
+[Join] Node 'node-jakarta-2' (id=102) bergabung, alamat 10.0.0.2, pred=177, successor lama=177
+       Tidak ada key yang berpindah
+[Join] Node 'node-bandung-1' (id=40) bergabung, alamat 10.0.0.3, pred=177, successor lama=102
+       Tidak ada key yang berpindah
+[Join] Node 'node-surabaya-1' (id=136) bergabung, alamat 10.0.0.4, pred=102, successor lama=177
+       Tidak ada key yang berpindah
+[Register] Kurir 'kurir-001' (hash=50) disimpan di Node 102 -> IP: 192.168.1.10
+[Register] Kurir 'kurir-002' (hash=28) disimpan di Node 40 -> IP: 192.168.1.11
+[Register] Kurir 'kurir-003' (hash=132) disimpan di Node 136 -> IP: 192.168.1.12
+[Register] Kurir 'kurir-012' (hash=116) disimpan di Node 136 -> IP: 192.168.1.13
+
+--- Lookup sebelum perubahan topologi ---
+kurir-001 -> 192.168.1.10
+kurir-002 -> 192.168.1.11
+
+--- Node baru bergabung ---
+SEBELUM join: kurir-012 (hash=116) -> Node 136, IP 192.168.1.13
+[Join] Node 'node-medan-1' (id=123) bergabung, alamat 10.0.0.5, pred=102, successor lama=136
+       Key hash=116 (kurir-012): Node 136 -> Node 123
+SESUDAH join: kurir-012 (hash=116) -> Node 123, IP 192.168.1.13
+kurir-001 -> 192.168.1.10
+
+--- Sebuah node keluar ---
+[Register] Kurir 'kurir-005' (hash=175) disimpan di Node 177 -> IP: 192.168.1.14
+SEBELUM leave: kurir-005 (hash=175) -> Node 177, IP 192.168.1.14
+[Leave] Node 'node-jakarta-1' (id=177) keluar dari ring, pred=136, successor baru=40
+       Key hash=175 (kurir-005): Node 177 -> Node 40
+SESUDAH leave: kurir-005 (hash=175) -> Node 40, IP 192.168.1.14
+kurir-001 -> 192.168.1.10
+kurir-002 -> 192.168.1.11
+
+--- Pemetaan akhir ---
+kurir-001 (hash=50) -> Node 102, IP 192.168.1.10
+kurir-002 (hash=28) -> Node 40, IP 192.168.1.11
+kurir-003 (hash=132) -> Node 136, IP 192.168.1.12
+kurir-005 (hash=175) -> Node 40, IP 192.168.1.14
+kurir-012 (hash=116) -> Node 123, IP 192.168.1.13
