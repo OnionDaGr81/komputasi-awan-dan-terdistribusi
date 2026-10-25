@@ -124,7 +124,7 @@ Rentang Node 40 melewati batas 255 → 0 karena ring melingkar: key yang lebih b
  
 **Skenario.** `node-jakarta-1` (id 177) keluar dari ring. Node ini memegang rentang `(136, 177]`. Pada data awal tidak ada kurir di rentang itu (hash yang ada: 28, 50, 116, 132), sehingga leave tidak akan memperlihatkan perpindahan apa pun. Karena itu sebelum leave kami mendaftarkan `kurir-005` (hash 175), yang jatuh di rentang Node 177.
  
-**Output program** (`bukti/output-lengkap-leave.txt`):
+**Output program** (`bukti/output_lengkap_leave.txt`):
  
 ```
 --- Sebuah node keluar ---
