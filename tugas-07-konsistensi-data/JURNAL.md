@@ -19,7 +19,7 @@
 - Kesimpulan akhir & alasan: ...
 
 ## Simulasi (jika dikerjakan)
-- Hasil skenario naif vs Read-Your-Writes: ...
+- Skenario naif: dibaca 0,5 detik setelah top-up, Bandung mengembalikan saldo 0 dan pesanan Rp45.000 ditolak. Saldo baru benar setelah replikasi tiba di t=2 detik (eventual). Read-Your-Writes: client menyimpan versi_minimal dari top-up. Bandung mendeteksi versi lokalnya lebih lama, lalu (a) mengalihkan pembacaan ke Jakarta, hasilnya langsung benar tanpa jeda, atau (b) menunggu replikasi, hasilnya benar dengan jeda sekitar 1,5 detik. Redirect lebih cepat untuk pelanggan, sedangkan polling tidak menambah beban ke Jakarta tapi menambah latensi.
 
 ## Log Penggunaan AI (Level 2)
 

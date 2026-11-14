@@ -1,0 +1,29 @@
+=== Skenario NAIF (tanpa Read-Your-Writes) ===
+[t= 0.0s] [Jakarta] WRITE saldo user1 = 50000.0 (versi 1)
+[t= 0.0s] [Jakarta] Kirim replikasi versi 1 ke Bandung (tiba ~2.0 detik lagi)
+[t= 0.5s] Baca saldo dari Bandung (naif): 0.0
+[t= 0.5s] Pesan makanan Rp45,000: DITOLAK (saldo kurang)
+-> Harusnya 50000, tapi karena delay replikasi, hasilnya 0 (BUG: inconsistent read)
+[t= 2.0s] [Bandung] WRITE saldo user1 = 50000.0 (versi 1)
+[t= 3.0s] Setelah replikasi selesai, Bandung (naif): 50000.0 -> baru konsisten 'pada akhirnya' (eventual)
+
+=== Skenario dengan Read-Your-Writes (strategi: redirect) ===
+[t= 3.0s] [Jakarta] WRITE saldo user1 = 70000.0 (versi 2)
+[t= 3.0s] [Jakarta] Kirim replikasi versi 2 ke Bandung (tiba ~2.0 detik lagi)
+[t= 3.0s] Client menyimpan token sesi: versi_minimal = 2
+[t= 3.5s] (cek) Bandung naif saat ini masih: 50000.0
+[t= 3.5s] [Bandung] STALE terdeteksi: versi lokal 1 < versi_minimal 2
+[t= 3.5s] [Bandung] Redirect pembacaan ke Jakarta
+[t= 3.5s] Baca saldo (RYW-redirect): 70000.0 -> BENAR
+[t= 5.0s] [Bandung] WRITE saldo user1 = 70000.0 (versi 2)
+
+=== Skenario dengan Read-Your-Writes (strategi: tunggu/polling) ===
+[t= 6.0s] [Jakarta] WRITE saldo user1 = 80000.0 (versi 3)
+[t= 6.0s] [Jakarta] Kirim replikasi versi 3 ke Bandung (tiba ~2.0 detik lagi)
+[t= 6.0s] Client menyimpan token sesi: versi_minimal = 3
+[t= 6.5s] [Bandung] STALE terdeteksi: versi lokal 2 < versi_minimal 3
+[t= 8.0s] [Bandung] WRITE saldo user1 = 80000.0 (versi 3)
+[t= 8.0s] [Bandung] Replikasi tiba (versi 3) -> baca lokal
+[t= 8.0s] Baca saldo (RYW-tunggu): 80000.0 -> BENAR
+
+Kesimpulan: pembacaan naif bisa stale, sedangkan Read-Your-Writes SELALU mengembalikan saldo terbaru milik client walau dibaca < REPLICATION_DELAY detik setelah top-up.
