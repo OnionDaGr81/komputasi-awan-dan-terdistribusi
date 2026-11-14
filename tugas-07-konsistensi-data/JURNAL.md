@@ -27,4 +27,4 @@
 
 | Tanggal | Tool AI | Prompt yang diberikan | Ringkasan saran/ide AI | Bagaimana diolah jadi tulisan/kode sendiri |
 |---|---|---|---|---|
-| ... | ... | ... | ... | ... |
+| 14/11/2026 | Gemini | Brainstorming struktur sequence diagram Mermaid untuk alur read/write saldo antara Pelanggan, Server Jakarta, dan Server Bandung pada skenario tanpa konsistensi (stale read) vs skenario Read-Your-Writes | Saran pemodelan urutan pesan top-up, replikasi asinkron yang tertunda (delay), letak titik kegagalan saat pembacaan saldo basi di Bandung, serta mekanisme pengecekan versi (`versi_minimal` / `last_write_version`) untuk menarik state terbaru dari Jakarta | Disusun menjadi dua diagram `sequenceDiagram` Mermaid beserta penjelasan langkah demi langkah titik kegagalan dan titik perbaikan pada Bagian 3 di `README.md` disesuaikan dengan studi kasus FoodGo (top-up Rp50.000 & pesan Rp45.000) |

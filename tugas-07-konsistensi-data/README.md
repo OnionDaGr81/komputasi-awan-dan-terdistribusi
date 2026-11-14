@@ -176,3 +176,89 @@ double spending. Pemeriksaan dan pemotongan saldo tetap harus dilakukan
 secara atomik melalui sumber data yang terkoordinasi, misalnya transaksi
 database dengan penguncian atau mekanisme konsensus. Jadi, kedua
 pendekatan tersebut saling melengkapi.
+
+## 3. Diagram Alir Urutan (Sequence Diagram)
+
+Bagian ini menggambarkan perbandingan alur operasi *write* (top-up) dan *read* (pengecekan saldo saat memesan makanan) antara **Pelanggan**, **Server Jakarta**, dan **Server Bandung** beserta proses replikasinya.
+
+### 3.1 Skenario Tanpa Jaminan Konsistensi (Bug Terjadi — *Inconsistent / Stale Read*)
+
+Pada skenario naif (*Eventual Consistency* murni tanpa jaminan sisi klien), server langsung membalas berhasil ke pelanggan setelah mencatat top-up secara lokal di Jakarta, sementara replikasi ke Bandung berjalan secara asinkron di latar belakang. Ketika pelanggan berpindah koneksi ke Server Bandung sebelum replikasi tiba, Server Bandung langsung membaca data lokalnya yang masih usang (*stale*).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor C as Pelanggan (Aplikasi)
+    participant JKT as Server Jakarta
+    participant BDG as Server Bandung
+
+    Note over JKT,BDG: Kondisi awal: Saldo JKT = Rp0, Saldo BDG = Rp0
+
+    C->>JKT: WRITE: Top-up saldo Rp50.000
+    activate JKT
+    Note right of JKT: Update saldo lokal: Rp0 menjadi Rp50.000
+    JKT-->>C: Respons: Top-up berhasil (Saldo: Rp50.000)
+    JKT--)BDG: Replikasi asinkron (Saldo = Rp50.000) — tertunda jaringan (~2 detik)
+    deactivate JKT
+
+    Note over C,BDG: Kurang dari 2 detik kemudian, aplikasi tersambung ke Server Bandung
+
+    C->>BDG: READ & Pesan makanan Rp45.000
+    activate BDG
+    Note left of BDG: TITIK KEGAGALAN (Stale Read): Replikasi JKT belum tiba, saldo lokal BDG masih Rp0!
+    BDG-->>C: Transaksi DITOLAK (Saldo Rp0 kurang dari Rp45.000) [BUG!]
+    deactivate BDG
+
+    Note over JKT,BDG: Beberapa saat kemudian (setelah jeda replikasi selesai)
+    BDG->>BDG: Pesan replikasi tiba -> Update saldo lokal BDG = Rp50.000 (Terlambat)
+```
+
+**Penjelasan titik kegagalan:**
+1. **Langkah 1–3:** Pelanggan melakukan *write* (top-up Rp50.000) ke Server Jakarta. Server Jakarta memperbarui saldonya menjadi Rp50.000, langsung mengirim konfirmasi sukses ke pelanggan, dan memulai pengiriman pesan replikasi asinkron ke Server Bandung.
+2. **Langkah 4–5 (*Titik Kegagalan*):** Dalam waktu kurang dari 2 detik (sebelum pesan replikasi sampai di Bandung), pelanggan memesan makanan seharga Rp45.000 melalui Server Bandung. Karena tidak ada pemeriksaan versi data, Server Bandung langsung membaca saldo lokalnya yang masih **Rp0** (*stale read*) dan menolak transaksi meskipun pelanggan baru saja menerima bukti top-up berhasil.
+3. **Langkah 6:** Data replikasi baru tiba di Server Bandung setelah transaksi telanjur ditolak.
+
+---
+
+### 3.2 Skenario Dengan Solusi *Read-Your-Writes* (Bug Teratasi)
+
+Pada skenario dengan jaminan **Client-Centric Consistency (*Read-Your-Writes*)**, setiap operasi perubahan saldo menghasilkan nomor versi (*version stamp* / token sesi) yang disimpan oleh aplikasi pelanggan. Ketika pelanggan bertransaksi lewat server lain, aplikasi menyertakan versi minimal (`versi_minimal`) yang pernah dilihatnya. Server tujuan wajib memastikan datanya minimal sama baru dengan versi tersebut sebelum memproses transaksi.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor C as Pelanggan (Aplikasi)
+    participant JKT as Server Jakarta
+    participant BDG as Server Bandung
+
+    Note over JKT,BDG: Kondisi awal: Saldo JKT = Rp0 (v0), Saldo BDG = Rp0 (v0)
+
+    C->>JKT: WRITE: Top-up saldo Rp50.000
+    activate JKT
+    Note right of JKT: Update saldo lokal: Saldo = Rp50.000, Versi = v1
+    JKT-->>C: Respons: Top-up sukses (Saldo: Rp50.000, last_write_version = v1)
+    JKT--)BDG: Replikasi asinkron (Saldo = Rp50.000, v1) — masih di perjalanan
+    deactivate JKT
+
+    Note over C: Aplikasi menyimpan token sesi: versi_minimal = v1
+
+    C->>BDG: Pesan makanan Rp45.000 (sertakan syarat: versi_minimal = v1)
+    activate BDG
+    Note left of BDG: TITIK PERBAIKAN (Cek Versi): Versi lokal BDG (v0) < versi_minimal (v1), data terdeteksi stale!
+
+    BDG->>JKT: Request sinkron / tarik state terbaru (butuh versi >= v1)
+    activate JKT
+    JKT-->>BDG: Kirim state terbaru: Saldo = Rp50.000 (v1)
+    deactivate JKT
+
+    Note left of BDG: Update saldo BDG = Rp50.000 (v1), cek saldo cukup, potong atomik jadi Rp5.000 (v2)
+    BDG-->>C: Transaksi BERHASIL (Sisa saldo: Rp5.000, last_write_version = v2)
+    BDG--)JKT: Replikasi update saldo terbaru (Saldo = Rp5.000, v2)
+    deactivate BDG
+```
+
+**Penjelasan titik perbaikan:**
+1. **Langkah 1–3 (Pencatatan Versi Penulisan):** Saat top-up Rp50.000 diproses di Server Jakarta, server menaikkan versi data pelanggan menjadi `v1` dan mengembalikan `last_write_version = v1` ke aplikasi pelanggan. Aplikasi menyimpan `versi_minimal = v1` di sesi klien.
+2. **Langkah 4 (*Titik Perbaikan*):** Saat pelanggan memesan makanan Rp45.000 ke Server Bandung, aplikasi menyertakan metadata `versi_minimal = v1`. Server Bandung memeriksa versi lokalnya (`v0`) dan mendeteksi bahwa `v0 < v1` (replikasi asinkron pada langkah 3 belum tiba).
+3. **Langkah 5–6 (Sinkronisasi / Redirect ke Sumber Konsisten):** Alih-alih langsung menolak pesanan menggunakan saldo Rp0, Server Bandung menahan pembacaan lokal dan menarik data terbaru dari Server Jakarta (atau menunggu hingga replikasi `v1` tiba). Setelah menerima saldo Rp50.000 (`v1`), Server Bandung memverifikasi bahwa saldo mencukupi (`Rp50.000 >= Rp45.000`).
+4. **Langkah 7–8:** Transaksi pesanan berhasil diproses, saldo dipotong menjadi Rp5.000 (`v2`), dan pelanggan mendapatkan pengalaman yang konsisten sesuai aksi terakhir yang baru saja dilakukannya (*Read-Your-Writes*).
