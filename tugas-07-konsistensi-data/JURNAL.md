@@ -16,9 +16,13 @@
     kepercayaan pelanggan. Ini memperkuat bahwa saldo butuh jaminan lebih kuat
     (lihat README bagian 1.4).
 
-- Kesimpulan akhir & alasan: 
-  - Saldo e-wallet: Sequential Consistency untuk operasi yang mengubah saldo + Read-Your-Writes. Alasan: <isi dengan kalimat kalian>
-  - Data non-kritis (rating, popularitas menu): Eventual Consistency. Alasan: <isi>
+- Kesimpulan akhir & alasan:
+  - Saldo e-wallet: Sequential Consistency untuk operasi yang mengubah saldo + Read-Your-Writes.
+    Alasan: urutan operasi menentukan saldo akhir, sehingga perbedaan antar replika bisa
+    menolak transaksi sah atau meloloskan double spending. Read-Your-Writes memastikan
+    pelanggan yang baru top-up langsung melihat saldonya walau berpindah server.
+  - Data non-kritis (rating, popularitas menu): Eventual Consistency. Alasan: selisih
+    sementara tidak menimbulkan kerugian, sehingga kecepatan dan ketersediaan lebih diutamakan.
 
 ## Simulasi (jika dikerjakan)
 - Skenario naif: dibaca 0,5 detik setelah top-up, Bandung mengembalikan saldo 0 dan pesanan Rp45.000 ditolak. Saldo baru benar setelah replikasi tiba di t=2 detik (eventual). Read-Your-Writes: client menyimpan versi_minimal dari top-up. Bandung mendeteksi versi lokalnya lebih lama, lalu (a) mengalihkan pembacaan ke Jakarta, hasilnya langsung benar tanpa jeda, atau (b) menunggu replikasi, hasilnya benar dengan jeda sekitar 1,5 detik. Redirect lebih cepat untuk pelanggan, sedangkan polling tidak menambah beban ke Jakarta tapi menambah latensi.
