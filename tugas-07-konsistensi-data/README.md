@@ -100,3 +100,79 @@ Menerapkan konsistensi kuat pada semua data FoodGo tidak efisien. Jarak Jakartaâ
 | Data non-kritis (rating, popularitas menu, jumlah ulasan) | **Eventual Consistency** | Selisih sementara tidak berdampak bisnis; mengutamakan kecepatan dan ketersediaan |
 
 **Catatan penting.** Sequential Consistency menjamin semua replika sepakat pada satu urutan operasi, sehingga mencegah *double spending* dan saldo salah hitung. Namun model ini tidak otomatis menjamin bahwa pembacaan segera setelah top-up pasti melihat nilai terbaru dari sudut pandang pelanggan yang berpindah server. Untuk gejala spesifik itu (saldo belum terlihat padahal pelanggan baru saja top-up), diperlukan jaminan sisi klien, yaitu ***Read-Your-Writes***, yang dibahas pada bagian usulan solusi client-centric.
+
+## 2. Usulan Solusi Client-Centric Consistency
+
+### 2.1 Masalah yang ingin diselesaikan
+
+Berdasarkan kasus FoodGo, pelanggan melakukan top-up sebesar Rp50.000
+melalui server Jakarta. Dua detik kemudian, pelanggan memesan makanan
+senilai Rp45.000 melalui server Bandung.
+
+Namun, karena proses replikasi data dari Jakarta ke Bandung belum
+selesai, server Bandung masih membaca saldo Rp0. Akibatnya, transaksi
+ditolak meskipun pelanggan sebenarnya sudah memiliki saldo yang cukup.
+
+Untuk mengatasi masalah tersebut, FoodGo dapat menerapkan pendekatan
+**Client-Centric Consistency**, khususnya menggunakan mekanisme
+**Read-Your-Writes**.
+
+### 2.2 Penerapan Read-Your-Writes
+
+Read-Your-Writes merupakan jaminan konsistensi yang memastikan bahwa
+setiap pelanggan dapat melihat hasil perubahan data yang sebelumnya
+telah dilakukan sendiri.
+
+Penerapannya pada FoodGo adalah sebagai berikut:
+
+1.  Pelanggan melakukan top-up sebesar Rp50.000 melalui server Jakarta.
+2.  Server Jakarta memproses top-up dan memperbarui saldo pelanggan
+    menjadi Rp50.000.
+3.  Sistem mengirimkan konfirmasi bahwa top-up berhasil kepada
+    pelanggan.
+4.  Ketika pelanggan berpindah ke server Bandung untuk melakukan
+    pemesanan, sistem memastikan bahwa pembacaan saldo pelanggan sudah
+    mencerminkan hasil top-up sebelumnya.
+5.  Jika replikasi dari Jakarta ke Bandung belum selesai, sistem dapat
+    mengarahkan pembacaan saldo ke server Jakarta atau mengambil data
+    terbaru dari sumber saldo yang konsisten.
+6.  Pelanggan dapat melakukan pemesanan makanan sebesar Rp45.000 karena
+    saldo terbaru sudah terbaca.
+
+### 2.3 Manfaat penerapan Read-Your-Writes
+
+Beberapa manfaat yang diperoleh FoodGo dari penerapan pendekatan ini
+adalah:
+
+1.  **Menghindari penolakan transaksi yang tidak semestinya.** Pelanggan
+    yang baru melakukan top-up tidak akan ditolak hanya karena server
+    lain belum menerima pembaruan saldo.
+2.  **Meningkatkan pengalaman pelanggan.** Pelanggan dapat melihat saldo
+    terbaru setelah melakukan top-up tanpa harus menunggu seluruh
+    replika selesai melakukan sinkronisasi.
+3.  **Menjaga kepercayaan pelanggan.** Informasi saldo yang ditampilkan
+    sesuai dengan transaksi yang telah dilakukan pelanggan.
+4.  **Mengurangi ketergantungan pada sinkronisasi seluruh replika.**
+    Sistem dapat memastikan pembacaan saldo pelanggan menggunakan sumber
+    data yang sudah memiliki pembaruan terbaru.
+
+### 2.4 Kesimpulan
+
+Berdasarkan permasalahan tersebut, FoodGo dapat menggabungkan
+**Sequential Consistency dan Client-Centric Consistency
+(Read-Your-Writes)** untuk pengelolaan saldo e-wallet.
+
+Sequential Consistency digunakan untuk memastikan operasi perubahan
+saldo memiliki urutan yang konsisten sehingga dapat mencegah kesalahan
+perhitungan dan double spending. Sementara itu, Read-Your-Writes
+memastikan pelanggan dapat melihat hasil top-up yang baru saja dilakukan
+meskipun sedang berpindah server.
+
+Dengan pendekatan tersebut, FoodGo dapat menjaga keamanan transaksi
+sekaligus memberikan pengalaman penggunaan aplikasi yang lebih baik.
+
+**Catatan teknis:** Read-Your-Writes saja tidak cukup untuk mencegah
+double spending. Pemeriksaan dan pemotongan saldo tetap harus dilakukan
+secara atomik melalui sumber data yang terkoordinasi, misalnya transaksi
+database dengan penguncian atau mekanisme konsensus. Jadi, kedua
+pendekatan tersebut saling melengkapi.
