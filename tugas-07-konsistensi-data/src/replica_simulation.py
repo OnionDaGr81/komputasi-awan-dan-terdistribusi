@@ -58,7 +58,7 @@ class ReplicationSystem:
         saldo_baru = self.jakarta.read(user_id) + jumlah
         self.jakarta.write(user_id, saldo_baru, version)
 
-        # TODO 1: replikasi ke Bandung TERTUNDA (simulasikan dengan
+        # TODO 1: replikasi asinkron ke Bandung, tertunda REPLICATION_DELAY detik
         print(f"[{ts()}] [Jakarta] Kirim replikasi versi {version} ke Bandung (tiba ~{REPLICATION_DELAY} detik lagi)")
         timer = threading.Timer(
             REPLICATION_DELAY,
@@ -77,10 +77,10 @@ class ReplicationSystem:
     def baca_saldo_read_your_writes(self, user_id: str, server: str, versi_minimal: int,
                                     strategi: str = "redirect") -> float:
         """TODO 2: implementasikan Read-Your-Writes -
-        jika replika yang dituju versi datanya < versi_minimal (client pernah
-        melihat versi lebih baru sebelumnya), tunggu/redirect ke replika yang
-        sudah punya versi tersebut (di sini cukup simulasikan dengan polling
-        sampai versi replika >= versi_minimal, atau redirect ke Jakarta)."""
+        Jika versi replika tujuan < versi_minimal milik client, data dianggap stale:
+          - strategi="redirect": baca langsung dari Jakarta.
+          - strategi="tunggu"  : polling sampai replikasi tiba; jika lewat MAX_WAIT,
+                                 fallback redirect ke Jakarta."""
         replica = self.jakarta if server == "Jakarta" else self.bandung
         versi_lokal = replica.version(user_id)
  
@@ -124,8 +124,7 @@ def main():
     time.sleep(REPLICATION_DELAY + 0.5)
     print(f"[{ts()}] Setelah replikasi selesai, Bandung (naif): {system.baca_saldo_naif(user_id, 'Bandung')}"
           " -> baru konsisten 'pada akhirnya' (eventual)")
-    # TODO 3: panggil baca_saldo_read_your_writes dan tunjukkan hasilnya SELALU benar
-    # walau dipanggil segera setelah top_up (< REPLICATION_DELAY detik).
+    # TODO 3: dua strategi Read-Your-Writes, dipanggil < REPLICATION_DELAY setelah top-up
     print("\n=== Skenario dengan Read-Your-Writes (strategi: redirect) ===")
     versi_terakhir = system.top_up(user_id, 20000)   # saldo seharusnya 70000
     print(f"[{ts()}] Client menyimpan token sesi: versi_minimal = {versi_terakhir}")
