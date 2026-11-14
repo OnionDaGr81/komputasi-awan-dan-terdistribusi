@@ -246,15 +246,18 @@ sequenceDiagram
     activate BDG
     Note left of BDG: TITIK PERBAIKAN (Cek Versi): Versi lokal BDG (v0) < versi_minimal (v1), data terdeteksi stale!
 
-    BDG->>JKT: Request sinkron / tarik state terbaru (butuh versi >= v1)
+    BDG->>JKT: Tarik state terbaru (butuh versi >= v1)
+    JKT-->>BDG: Saldo = Rp50.000 (v1), cukup untuk Rp45.000
+
+    BDG->>JKT: Minta pemotongan saldo Rp45.000 (sumber saldo terkoordinasi)
     activate JKT
-    JKT-->>BDG: Kirim state terbaru: Saldo = Rp50.000 (v1)
+    JKT->>JKT: Kunci saldo, cek, potong atomik: Rp50.000 menjadi Rp5.000 (v2)
+    JKT-->>BDG: Pemotongan berhasil (Saldo = Rp5.000, v2)
     deactivate JKT
 
-    Note left of BDG: Update saldo BDG = Rp50.000 (v1), cek saldo cukup, potong atomik jadi Rp5.000 (v2)
     BDG-->>C: Transaksi BERHASIL (Sisa saldo: Rp5.000, last_write_version = v2)
-    BDG--)JKT: Replikasi update saldo terbaru (Saldo = Rp5.000, v2)
     deactivate BDG
+    JKT--)BDG: Replikasi asinkron saldo terbaru (Rp5.000, v2)
 ```
 
 **Penjelasan titik perbaikan:**
@@ -263,3 +266,36 @@ sequenceDiagram
 3. **Langkah 5–6 (Sinkronisasi / Redirect ke Sumber Konsisten):** Alih-alih langsung menolak pesanan menggunakan saldo Rp0, Server Bandung menahan pembacaan lokal dan menarik data terbaru dari Server Jakarta (atau menunggu hingga replikasi `v1` tiba). Saldo yang terbaca kini Rp50.000 (`v1`), sehingga cukup untuk pesanan Rp45.000.
 4. **Langkah 7–9 (Pemotongan Saldo Terkoordinasi):** Server Bandung tidak memotong saldo secara lokal, tetapi meneruskan permintaan pemotongan ke Server Jakarta sebagai sumber saldo yang terkoordinasi. Jakarta mengunci saldo, memeriksa, dan memotongnya secara atomik menjadi Rp5.000 (`v2`). Dengan begitu, dua pembayaran hampir bersamaan dari server berbeda tidak bisa sama-sama lolos memakai saldo lama (*double spending* tercegah, sesuai kesimpulan bagian 1.6).
 5. **Langkah 10–11:** Pelanggan menerima konfirmasi transaksi berhasil beserta `last_write_version = v2` sebagai token sesi berikutnya, lalu Jakarta mereplikasi saldo terbaru ke Bandung secara asinkron. Pelanggan selalu melihat hasil aksinya sendiri (*Read-Your-Writes*), sementara urutan perubahan saldo tetap terjaga (*Sequential Consistency*).
+
+## 4. Skenario Tambahan: Lokasi Driver pada Aplikasi Ojek Online
+
+### 4.1 Kasus
+Aplikasi ojek online "GoRide" menampilkan posisi driver secara real-time di peta pelanggan.
+Driver mengirim koordinat GPS setiap 3 detik ke server terdekat (mis. Surabaya), lalu data
+direplikasi ke server lain (mis. Jakarta) secara asinkron. Pelanggan yang tersambung ke
+server Jakarta bisa melihat posisi driver yang tertinggal beberapa detik.
+
+### 4.2 Model yang dipilih: Eventual Consistency + Monotonic Reads
+
+| Pertimbangan | Analisis |
+|---|---|
+| Dampak data basi | Posisi driver tertinggal 3–5 detik (± puluhan meter). Tidak ada uang yang berpindah dan tidak ada keputusan transaksi yang diambil dari angka ini |
+| Data cepat usang dengan sendirinya | Koordinat lama langsung digantikan update berikutnya, jadi selisih hilang sendiri dalam hitungan detik |
+| Biaya konsistensi kuat | Update datang setiap 3 detik dari ribuan driver. Koordinasi antar server untuk tiap update akan membebani jaringan dan membuat peta justru lebih lambat |
+| Masalah yang tetap perlu dicegah | Jika pelanggan bergantian membaca dari dua replika berbeda, ikon driver bisa "melompat mundur" (posisi baru, lalu posisi lama). Ini membingungkan pelanggan |
+
+Karena itu dipilih **Eventual Consistency** (cukup, karena data basi tidak merugikan),
+ditambah jaminan client-centric **Monotonic Reads**: aplikasi menyimpan timestamp
+koordinat terakhir yang sudah ditampilkan, dan mengabaikan data dengan timestamp lebih lama.
+Dengan begitu posisi driver tidak pernah tampil mundur.
+
+### 4.3 Perbandingan dengan FoodGo
+Pada FoodGo, data basi bisa **menolak transaksi sah atau meloloskan double spending**, sehingga
+butuh Sequential Consistency + Read-Your-Writes. Pada lokasi driver, data basi hanya membuat
+tampilan sedikit tertinggal, sehingga Eventual Consistency lebih tepat. Model konsistensi
+dipilih berdasarkan dampak kesalahan, bukan berdasarkan jenis aplikasinya.
+
+## 5. Simulasi (Bagian 2)
+Simulasi ada di `src/replica_simulation.py` (jalankan: `python3 src/replica_simulation.py`),
+output ada di `bukti/`. Hasil: pembacaan naif dari Bandung mengembalikan saldo 0 (stale read),
+sedangkan Read-Your-Writes (redirect maupun polling) selalu mengembalikan saldo terbaru.
