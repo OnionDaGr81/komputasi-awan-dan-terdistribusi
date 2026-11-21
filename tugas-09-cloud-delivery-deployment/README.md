@@ -43,6 +43,18 @@ Kebijakan **Level 2 (AI Assisted Idea Generation & Structuring)** berlaku — li
 - Jawaban yang terasa seperti "template" (bisa dipakai untuk sistem cloud apa saja tanpa menyebut spesifik kependudukan/data pribadi/regulasi) akan dinilai rendah pada komponen ketepatan rekomendasi.
 - `README.md` wajib membahas minimal satu skenario tandingan yang kalian buat sendiri (mis. "bagaimana jika instansi daerah tidak punya infrastruktur private cloud sendiri?") beserta jawabannya.
 
+---
+
+## Kontribusi Kelompok
+
+| Nama | NIM | Kontribusi |
+|---|---|---|
+| Didit Septa Putra | 103072400071 | Rekomendasi Deployment Model berbasis NIST (Bagian 1), perbandingan alternatif yang ditolak (Bagian 4), jurnal diskusi deployment model |
+| Alif Rifqi Pratama | 103072400133 | Rekomendasi Service Model IaaS/PaaS/SaaS per komponen (Bagian 2), diagram arsitektur di `bukti/`, jurnal diskusi service model |
+| Muhammad Chaesar Pratama | 103072400119 | Analisis risiko spesifik & mitigasi (Bagian 3), skenario tandingan & solusinya (Bagian 5), tabel kontribusi, catatan jurnal risiko |
+
+---
+
 ## 1. Rekomendasi Deployment Model: Hybrid Cloud
  
 **Rekomendasi:** Sistem Data Kependudukan sebaiknya dibangun di atas **Hybrid Cloud**. Data inti (database induk NIK dan biometrik, kunci enkripsi, serta log audit) berada di **private cloud** yang dikendalikan penuh oleh negara. Lapisan akses yang berskala besar (portal pengecekan status, API gateway verifikasi, dan cache) berjalan di **public cloud** yang berlokasi di Indonesia dan hanya menangani data yang sudah diminimalkan.
@@ -135,5 +147,66 @@ Penerapan ini memungkinkan pemerintah mempertahankan kendali atas data inti mela
 
 Kombinasi **IaaS, PaaS, dan SaaS** merupakan pilihan yang tepat untuk Sistem Data Kependudukan karena setiap komponen memiliki kebutuhan pengelolaan yang berbeda. IaaS digunakan untuk menjaga kendali dan keamanan infrastruktur data inti, PaaS digunakan untuk mendukung pengembangan serta skalabilitas aplikasi verifikasi, sedangkan SaaS digunakan untuk meningkatkan efisiensi layanan pendukung. Dengan pembagian tersebut, sistem dapat berjalan lebih fleksibel, efisien, dan tetap memperhatikan kerahasiaan data penduduk.
 
- 
 ---
+
+## 3. Analisis Risiko Spesifik & Mitigasi
+
+Menggabungkan **Hybrid Cloud** (Bagian 1) dengan pemetaan **IaaS di Private Cloud, PaaS di Public Cloud region Indonesia, dan SaaS untuk layanan pendukung** (Bagian 2) menyelesaikan dilema antara kendali penuh negara dan skalabilitas saat lonjakan akses. Namun, arsitektur lintas segmen ini memunculkan risiko spesifik pada konteks data kependudukan (NIK, alamat, biometrik) serta regulasi **UU No. 27 Tahun 2022 (UU PDP)** dan **PP No. 71 Tahun 2019**. Berikut tiga risiko paling krusial beserta mitigasinya.
+
+### 3.1 Risiko 1: Kebocoran Data Pribadi & Biometrik pada Batas Integrasi (*Bridge*) Private–Public Cloud dan Layanan SaaS Pendukung
+
+- **Deskripsi risiko:** Pada rancangan di atas, *API gateway* verifikasi, *cache* hasil verifikasi, dan sistem antrean berjalan sebagai **PaaS di Public Cloud**, sementara database induk NIK dan biometrik berada di **IaaS Private Cloud**. Jika terjadi kesalahan konfigurasi sinkronisasi, *cache* yang menyimpan atribut kependudukan mentah (NIK, alamat lengkap, atau templat biometrik) di segmen publik, pencatatan *payload* ke *log* PaaS pihak ketiga, atau warga yang tidak sengaja mengunggah foto KTP/NIK ke aplikasi **SaaS helpdesk/pengaduan**, maka data sensitif warga keluar dari kendali penuh negara. Berdasarkan UU PDP, data biometrik (sidik jari, iris, wajah) termasuk **data pribadi bersifat spesifik** yang dampaknya permanen jika bocor karena tidak dapat di-*reset* seperti kata sandi.
+- **Mitigasi:**
+  1. **Pola *Zero-PII Persistence* di segmen Public Cloud (PaaS):** Lapisan *API gateway* dan portal pengecekan status dirancang *stateless* dan dilarang menyimpan salinan data induk maupun biometrik mentah. Pencocokan biometrik/KYC selalu dieksekusi di dalam *Private Cloud* (IaaS), sedangkan segmen *Public Cloud* hanya meneruskan hasil verifikasi terbatas (*valid/tidak valid* atau skor kecocokan).
+  2. **Koneksi privat terenkripsi dengan kendali kunci penuh negara:** Lalu lintas antara PaaS (*Public Cloud* region Indonesia) dan IaaS (*Private Cloud*) wajib melewati jalur privat khusus (*dedicated interconnect* / VPN IPsec) dengan *mutual TLS* (mTLS). Seluruh kunci enkripsi dikelola sepenuhnya pada server manajemen kunci / *Hardware Security Module* (HSM) di *Private Cloud* negara (*Hold Your Own Key*) agar penyedia *Public Cloud* tidak dapat membaca *payload*.
+  3. **Redaksi otomatis (*data masking*) & isolasi data pada SaaS:** Menerapkan filter redaksi di *API gateway* agar NIK dan atribut sensitif tidak pernah masuk ke *log* aplikasi PaaS. Pada layanan SaaS *helpdesk*/pengaduan, sistem hanya menyimpan nomor tiket ter-tokenisasi (bukan NIK atau lampiran KTP mentah), sementara dokumen identitas yang perlu diverifikasi diarahkan langsung ke penyimpanan terenkripsi di *Private Cloud*.
+
+### 3.2 Risiko 2: *Bottleneck* & Ketidakkonsistenan Sinkronisasi Lintas Segmen Saat Lonjakan Nasional (Pemilu / PPDB)
+
+- **Deskripsi risiko:** Segmen *Public Cloud* (PaaS) dipilih demi *rapid elasticity* saat musim pemilu, pendaftaran sekolah (PPDB), dan lonjakan KYC bank. Namun, elastisitas ini berisiko menjadi *false elasticity* apabila *API gateway* dan portal di *Public Cloud* mampu melakukan *auto-scale* secara drastis, tetapi jalur penghubung (*interconnect*) dan kapasitas baca database induk di *Private Cloud* (IaaS) mengalami kejenuhan (*bottleneck*). Dampaknya, antrean permintaan menumpuk dan verifikasi KYC maupun layanan dukcapil daerah mengalami *timeout*. Selain itu, keberadaan *cache* hasil verifikasi di *Public Cloud* memunculkan risiko *stale data* — misalnya warga baru memperbarui alamat domisili di dukcapil daerah, tetapi portal PPDB masih membaca domisili lama dari *cache* publik.
+- **Mitigasi:**
+  1. ***Priority queuing* & pemisahan kuota per jenis instansi:** Sistem antrean permintaan dan *API gateway* (PaaS) menerapkan *rate limiting* dan antrean prioritas terpisah sehingga trafik operasional kritis negara (dukcapil daerah, KPU, kepolisian) memiliki kuota terjamin dan tidak terdampak lonjakan trafik komersial (verifikasi KYC bank/fintech) maupun portal pengecekan publik.
+  2. ***Read-replica* di zona Private Cloud & *event-driven cache invalidation*:** Beban verifikasi *read-heavy* saat pemilu/PPDB didistribusikan ke *read-replica* database di dalam *Private Cloud* (IaaS). Untuk *cache* hasil verifikasi non-biometrik di *Public Cloud*, terapkan TTL ketat disertai mekanisme invalidasi berbasis *event* setiap kali dukcapil mencatat pembaruan data induk.
+  3. **Redundansi jalur *interconnect* & *graceful degradation*:** Menyediakan minimal dua jalur koneksi privat aktif-aktif (*dual-homed*) antar penyedia jaringan berbeda antara *Public Cloud* region Indonesia dan *Private Cloud*, serta *circuit breaker* / antrean virtual (*waiting room*) pada portal publik agar lonjakan trafik warga tidak menjatuhkan layanan verifikasi inti.
+
+### 3.3 Risiko 3: Penyalahgunaan Akses oleh Ribuan Instansi Konsumen (*Credential Abuse* & *Bulk Scraping*)
+
+- **Deskripsi risiko:** Karakteristik *broad network access* membuka layanan verifikasi bagi ribuan instansi (dukcapil kabupaten/kota, kepolisian, hingga ratusan bank/lembaga keuangan). Jika API key atau kredensial milik satu kantor cabang bank atau instansi daerah bocor, pihak tidak berwenang dapat melakukan penyedotan massal (*bulk scraping*) data NIK melalui jalur *API gateway* yang secara teknis sah.
+- **Mitigasi:**
+  1. **Prinsip *Least Privilege* sesuai mandat lembaga:** Hak akses dibedakan tegas di level otorisasi *Private Cloud*. Bank hanya memperoleh akses *verification-only* (input NIK + nama/swafoto → output cocok/tidak cocok), bukan akses *read* profil lengkap atau *write*. Operasi ubah/tambah data hanya dimiliki dukcapil sesuai wilayah kerjanya.
+  2. **Autentikasi berlapis & pembatasan jaringan:** Mewajibkan sertifikat klien (*mTLS*) per instansi, rotasi API key berkala, serta *IP whitelisting* agar kredensial yang bocor tidak dapat dipakai dari luar jaringan instansi resmi.
+  3. ***Immutable audit trail* & deteksi anomali di Private Cloud:** Setiap permintaan verifikasi NIK dicatat pada *log audit* yang dikelola di *Private Cloud* (IaaS) — lengkap dengan identitas instansi, waktu, dan NIK tujuan — disertai deteksi anomali otomatis yang memutus akses seketika jika satu akun instansi memicu lonjakan query tidak wajar (mis. ribuan query NIK berurutan di luar jam kerja).
+
+### Ringkasan Risiko & Mitigasi
+
+| No | Risiko Spesifik | Akar Masalah pada Hybrid Cloud + IaaS/PaaS/SaaS | Mitigasi Utama |
+|---|---|---|---|
+| 1 | Kebocoran NIK & data biometrik (pelanggaran UU PDP) | Data mentah ter-cache/tercatat di *log* PaaS *Public Cloud* atau masuk ke SaaS *helpdesk* | *Zero-PII persistence* di segmen publik, respons *valid/tidak valid*, mTLS + HSM di *Private Cloud*, *auto-masking log*, tokenisasi tiket SaaS |
+| 2 | *Bottleneck* *interconnect* & *stale data* saat pemilu/PPDB | PaaS di *Public Cloud* *auto-scale*, tetapi jalur & DB induk IaaS *Private Cloud* jenuh / *cache* tertinggal | *Priority queuing* per kategori instansi, *read-replica* di *Private Cloud*, *event-driven cache invalidation*, *interconnect* redundan |
+| 3 | *Bulk scraping* via kredensial instansi konsumen | Ribuan instansi eksternal (bank, kepolisian, daerah) mengakses *API gateway* | *Least privilege* (bank hanya *verification-only*), mTLS + *IP whitelisting*, *immutable audit trail* di *Private Cloud* + deteksi anomali |
+
+---
+
+## 4. Perbandingan dengan Alternatif yang Ditolak
+
+> *TODO (Didit Septa Putra / Anggota 1): Bandingkan Hybrid Cloud dengan 1 alternatif yang ditolak (misalnya Public Cloud murni atau Private Cloud murni) beserta alasan penolakannya.*
+
+---
+
+## 5. Skenario Tandingan
+
+Untuk menguji ketahanan arsitektur **Hybrid Cloud (IaaS Private + PaaS Public region Indonesia + SaaS pendukung)** pada kondisi lapangan nyata di Indonesia, berikut dua skenario tandingan beserta jawabannya.
+
+### 5.1 Skenario Tandingan 1: Instansi Dukcapil Daerah (terutama Daerah 3T) Tidak Memiliki Infrastruktur Private Cloud Sendiri dan Koneksi Internetnya Tidak Stabil
+
+- **Pertanyaan kritis:** *Jika data induk wajib berada di Private Cloud milik negara, bagaimana jika sebagian besar dinas dukcapil kabupaten/kota — khususnya di wilayah 3T — tidak memiliki data center maupun SDM untuk membangun Private Cloud sendiri, sementara konektivitas internetnya sering terputus?*
+- **Jawaban & penyesuaian arsitektur:**
+  1. ***Private Cloud* dikelola terpusat secara nasional, bukan per daerah:** Segmen *Private Cloud* (IaaS) dibangun dan dioperasikan terpusat oleh pemerintah pusat (misalnya melalui Pusat Data Nasional / Kemendagri dengan beberapa *availability zone* lintas wilayah untuk *disaster recovery*). Dukcapil daerah **tidak perlu** membangun server *private cloud* sendiri; mereka cukup bertindak sebagai klien yang mengakses layanan pusat melalui jaringan tertutup pemerintah (VPN/intranet pemerintah) dan aplikasi web/API. Model terpusat ini sekaligus mencegah celah keamanan akibat ketimpangan standar infrastruktur antar daerah.
+  2. **Mekanisme *store-and-forward* terenkripsi untuk wilayah jaringan tidak stabil:** Untuk kantor dukcapil di daerah dengan koneksi intermiten, perangkat perekaman data kependudukan dan biometrik dapat menggunakan antrean lokal sementara yang terenkripsi penuh (*encrypted offline queue*). Saat koneksi ke *Private Cloud* pusat pulih, data otomatis dikirim dan disinkronkan secara atomik, lalu salinan lokal segera dihapus setelah menerima konfirmasi *commit* dari pusat agar data sensitif warga tidak menumpuk di perangkat daerah.
+
+### 5.2 Skenario Tandingan 2: Gangguan Koneksi Lintas Segmen (*Interconnect*) Terjadi Tepat di Hari Puncak Pemilu atau PPDB
+
+- **Pertanyaan kritis:** *Karena Hybrid Cloud mengandalkan jalur penghubung antara segmen Public Cloud (PaaS) dan Private Cloud negara (IaaS), apa yang terjadi apabila jalur penghubung tersebut mengalami gangguan atau latensi ekstrem tepat di hari puncak pengecekan DPT pemilu atau pendaftaran PPDB?*
+- **Jawaban & penyesuaian arsitektur:**
+  1. **Isolasi jalur akses instansi inti negara:** Instansi pemerintahan kritis (dukcapil daerah, KPU, kepolisian) diarahkan melalui jalur jaringan privat langsung ke *Private Cloud* tanpa melewati segmen *Public Cloud*. Dengan begitu, gangguan pada segmen publik atau *bridge* publik–privat tidak ikut melumpuhkan layanan operasional inti negara.
+  2. **Redundansi jalur ganda & degradasi terkendali (*graceful degradation*):** Jalur *interconnect* antara *Public Cloud* region Indonesia dan *Private Cloud* dirancang aktif-aktif menggunakan minimal dua penyedia jaringan berbeda (*multi-carrier*). Jika kapasitas jalur tetap terdegradasi, sistem antrean dan *API gateway* di segmen publik secara otomatis mengaktifkan ruang tunggu virtual (*virtual waiting room*) untuk portal pengecekan publik serta membatasi laju (*throttling*) verifikasi KYC komersial non-darurat, sehingga kapasitas yang tersisa diprioritaskan bagi layanan kependudukan paling kritis tanpa mengorbankan keamanan maupun integritas database induk di *Private Cloud*.
