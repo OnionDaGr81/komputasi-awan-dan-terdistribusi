@@ -49,9 +49,9 @@ Kebijakan **Level 2 (AI Assisted Idea Generation & Structuring)** berlaku — li
 
 | Nama | NIM | Kontribusi |
 |---|---|---|
-| Didit Septa Putra | 103072400071 | Rekomendasi Deployment Model berbasis NIST (Bagian 1), perbandingan alternatif yang ditolak (Bagian 4), jurnal diskusi deployment model |
-| Alif Rifqi Pratama | 103072400133 | Rekomendasi Service Model IaaS/PaaS/SaaS per komponen (Bagian 2), diagram arsitektur di `bukti/`, jurnal diskusi service model |
-| Muhammad Chaesar Pratama | 103072400119 | Analisis risiko spesifik & mitigasi (Bagian 3), skenario tandingan & solusinya (Bagian 5), tabel kontribusi, catatan jurnal risiko |
+| Didit Septa Putra | 103072400071 | Rekomendasi Deployment Model berbasis NIST (Bagian 1), perbandingan alternatif yang ditolak (Bagian 4) |
+| Alif Rifqi Pratama | 103072400133 | Rekomendasi Service Model IaaS/PaaS/SaaS per komponen dan kaitan dengan Hybrid Cloud (Bagian 2) |
+| Muhammad Chaesar Pratama | 103072400119 | Analisis risiko spesifik & mitigasi (Bagian 3), skenario tandingan & solusinya (Bagian 5), tabel kontribusi, finalisasi `README.md` & `JURNAL.md` |
 
 ---
 
@@ -77,6 +77,7 @@ Lonjakan akses saat pemilu, pendaftaran sekolah, dan verifikasi KYC bank sebagia
 3. **Resource pooling.** Pada public cloud, sumber daya fisik digunakan bersama tenant lain (multi-tenancy). Untuk lapisan akses yang hanya memproses data minimal, risiko ini bisa diterima. Untuk data biometrik seluruh warga negara, berbagi infrastruktur fisik dengan pihak lain tidak bisa diterima, sehingga database induk ditempatkan di private cloud yang pool sumber dayanya hanya dipakai institusi pemerintah.
 4. **Rapid elasticity.** Ini alasan utama memakai segmen public. Jika seluruh sistem dibangun di private cloud, kapasitas harus disiapkan untuk puncak pemilu atau musim pendaftaran sekolah, lalu menganggur sebagian besar tahun. Dengan Hybrid, kapasitas tambahan di public bisa diperbesar saat lonjakan dan dikecilkan setelahnya, sehingga risiko downtime saat lonjakan berkurang.
 5. **Measured service.** Pemakaian tiap instansi dapat diukur dan ditagih sesuai penggunaan, dan metering ini sekaligus mendukung audit: siapa mengakses data apa, kapan, dan berapa kali. Pencatatan akses terhadap data inti dilakukan di segmen private agar jejak audit berada di bawah kendali negara.
+
 ### Kaitan dengan kerahasiaan negara dan regulasi
  
 Data kependudukan, terutama biometrik, termasuk data pribadi yang bersifat spesifik dan mendapat perlindungan ketat dalam UU Perlindungan Data Pribadi (UU No. 27 Tahun 2022). Pengendali data bertanggung jawab menjaga keamanan dan kerahasiaannya. Selain itu, ketentuan bagi penyelenggara sistem elektronik lingkup publik (PP No. 71 Tahun 2019) menuntut perhatian pada lokasi pengelolaan dan pemrosesan data. Dua hal ini menjadi dasar bahwa **kendali atas data inti tidak boleh dilepas**, sementara kebutuhan skalabilitas dipenuhi di lapisan yang tidak menyimpan data inti.
@@ -187,8 +188,6 @@ Menggabungkan **Hybrid Cloud** (Bagian 1) dengan pemetaan **IaaS di Private Clou
 
 ---
 
-## 4. Perbandingan dengan Alternatif yang Ditolak
-
 ## 4. Perbandingan dengan Alternatif yang Ditolak: Public Cloud Murni
  
 **Alternatif yang ditolak:** menjalankan seluruh Sistem Data Kependudukan, termasuk database induk, di public cloud.
@@ -202,6 +201,7 @@ Menggabungkan **Hybrid Cloud** (Bagian 1) dengan pemetaan **IaaS di Private Clou
 3. **Resource pooling lintas tenant.** Karakteristik resource pooling berarti infrastruktur dipakai bersama banyak pelanggan. Isolasi antar tenant bergantung pada penyedia, bukan pada negara. Untuk data kependudukan, ini risiko yang tidak bisa dikendalikan sendiri.
 4. **Yurisdiksi dan kewajiban regulasi.** UU PDP dan aturan penyelenggara sistem elektronik lingkup publik menuntut pengendali data tetap bertanggung jawab atas keamanan dan pengelolaan data. Menempatkan seluruh data pada penyedia yang tunduk pada yurisdiksi atau kebijakan di luar kendali negara memperumit pemenuhan kewajiban tersebut, termasuk saat ada permintaan akses oleh pihak ketiga. Pada rancangan Hybrid, risiko ini ditekan karena public cloud dibatasi pada region Indonesia dan seluruh kunci enkripsi dipegang di HSM milik negara di private cloud (lihat Risiko 1 pada bagian 3). Pada Public Cloud murni, mitigasi ini tidak bisa diterapkan karena database induk dan kuncinya sama-sama berada di penyedia.
 5. **Ketergantungan pada satu penyedia (vendor lock-in).** Memindahkan jutaan record biometrik antar penyedia mahal dan berisiko. Ketergantungan ini melemahkan posisi negara dalam hal biaya, kebijakan, dan keberlanjutan layanan. Pada Hybrid, ketergantungan pada penyedia public cloud hanya terbatas pada lapisan PaaS yang stateless, sehingga relatif mudah dipindahkan, sedangkan data induk tetap di infrastruktur negara.
+
 **Ringkasan perbandingan:**
  
 | Aspek | Hybrid Cloud (dipilih) | Public Cloud murni (ditolak) |
@@ -212,6 +212,8 @@ Menggabungkan **Hybrid Cloud** (Bagian 1) dengan pemetaan **IaaS di Private Clou
 | Dampak jika segmen publik bermasalah | Data inti tetap terisolasi | Seluruh sistem ikut terdampak |
  
 **Kesimpulan poin 4:** Public Cloud murni ditolak karena menukar kendali atas data paling sensitif dengan skalabilitas, padahal skalabilitas itu tetap bisa didapat lewat Hybrid tanpa menyerahkan database induk ke luar kendali negara.
+
+---
 
 ## 5. Skenario Tandingan
 
