@@ -72,5 +72,68 @@ Data kependudukan, terutama biometrik, termasuk data pribadi yang bersifat spesi
 ### Kesimpulan poin 1
  
 Hybrid Cloud dipilih karena sistem ini menghadapi dua tuntutan yang bertolak belakang: data yang sangat rahasia dan pola akses yang tidak rata. Private cloud memenuhi tuntutan pertama, public cloud memenuhi tuntutan kedua, dan pembagian berdasarkan klasifikasi data membuat keduanya tidak saling mengorbankan.
+
+## 2. Rekomendasi Service Model (IaaS / PaaS / SaaS)
+
+**Rekomendasi:** Sistem Data Kependudukan sebaiknya menggunakan kombinasi **IaaS, PaaS, dan SaaS** sesuai fungsi dan tingkat sensitivitas masing-masing komponen. Pemilihan service model harus mempertimbangkan kebutuhan kendali terhadap infrastruktur, kemudahan pengembangan aplikasi, serta keamanan data pribadi penduduk.
+
+### Prinsip pembagian: berdasarkan fungsi komponen
+
+| Service Model | Komponen Sistem | Alasan |
+|---|---|---|
+| **IaaS (Infrastructure as a Service)** | Database induk NIK, penyimpanan biometrik, server manajemen kunci enkripsi, dan log audit | Membutuhkan kendali penuh terhadap server, jaringan, penyimpanan, dan konfigurasi keamanan karena menangani data yang sangat sensitif. |
+| **PaaS (Platform as a Service)** | API gateway verifikasi, aplikasi portal pengecekan status, sistem antrean permintaan, dan cache | Memudahkan pengembangan, pengelolaan, serta penskalaan aplikasi tanpa harus mengelola infrastruktur server secara langsung. |
+| **SaaS (Software as a Service)** | Aplikasi pendukung seperti helpdesk, sistem pelaporan, dan pengelolaan tiket pengaduan | Dapat menggunakan aplikasi siap pakai sehingga pemerintah tidak perlu membangun dan memelihara seluruh perangkat lunak pendukung sendiri. |
+
+### Analisis masing-masing Service Model
+
+**1. Infrastructure as a Service (IaaS)**
+
+IaaS direkomendasikan untuk komponen inti yang membutuhkan kendali infrastruktur secara menyeluruh, terutama database induk NIK, penyimpanan biometrik, dan log audit.
+
+- Pemerintah dapat mengatur server, jaringan, sistem operasi, dan penyimpanan sesuai kebutuhan keamanan.
+- Memungkinkan penerapan firewall, enkripsi, dan pembatasan akses secara khusus.
+- Infrastruktur dapat ditempatkan pada private cloud sehingga pengelolaan data inti tetap berada di bawah kendali pemerintah.
+
+Dengan demikian, IaaS menjadi pilihan yang tepat untuk komponen yang menyimpan informasi pribadi dan rahasia penduduk.
+
+**2. Platform as a Service (PaaS)**
+
+PaaS direkomendasikan untuk komponen aplikasi yang melayani permintaan verifikasi dari berbagai instansi, seperti API gateway, portal pengecekan status, dan sistem antrean permintaan.
+
+- Pengembang dapat fokus membangun dan memperbarui aplikasi tanpa mengelola server secara langsung.
+- Mendukung peningkatan kapasitas secara otomatis ketika terjadi lonjakan permintaan.
+- Mempermudah integrasi antarinstansi melalui API yang terkelola.
+- Mengurangi beban pemeliharaan infrastruktur aplikasi.
+
+PaaS cocok ditempatkan pada public cloud untuk menangani permintaan dalam jumlah besar, dengan ketentuan bahwa aplikasi hanya memproses data yang telah diminimalkan atau ditokenisasi.
+
+**3. Software as a Service (SaaS)**
+
+SaaS direkomendasikan untuk kebutuhan pendukung yang tidak berhubungan langsung dengan pengolahan database kependudukan, misalnya aplikasi helpdesk, sistem pengaduan masyarakat, dan pengelolaan tiket layanan.
+
+- Pemerintah dapat langsung menggunakan aplikasi yang sudah disediakan oleh penyedia layanan.
+- Tidak perlu membangun aplikasi pendukung dari awal.
+- Pemeliharaan dan pembaruan aplikasi ditangani oleh penyedia layanan.
+- Dapat meningkatkan efisiensi operasional dan pelayanan masyarakat.
+
+Namun, penggunaan SaaS harus dibatasi pada data yang tidak sensitif. Data NIK, biometrik, dan informasi pribadi penduduk tidak boleh disimpan atau diproses melalui layanan SaaS tanpa jaminan keamanan, kepatuhan, dan kewenangan yang sesuai.
+
+### Kaitan dengan Rekomendasi Deployment Model (Hybrid Cloud)
+
+Ketiga service model tersebut dapat diterapkan bersamaan dengan Hybrid Cloud pada poin pertama.
+
+| Lokasi Deployment | Service Model | Komponen |
+|---|---|---|
+| Private Cloud | IaaS | Database induk NIK, biometrik, kunci enkripsi, dan log audit |
+| Public Cloud | PaaS | API gateway, portal pengecekan status, cache, dan sistem antrean |
+| Public Cloud / Infrastruktur pemerintah | SaaS | Helpdesk, sistem pengaduan, dan aplikasi pelaporan pendukung |
+
+Penerapan ini memungkinkan pemerintah mempertahankan kendali atas data inti melalui IaaS, memperoleh fleksibilitas pengembangan aplikasi melalui PaaS, serta meningkatkan efisiensi layanan pendukung melalui SaaS.
+
+### Kesimpulan Poin 2
+
+Kombinasi **IaaS, PaaS, dan SaaS** merupakan pilihan yang tepat untuk Sistem Data Kependudukan karena setiap komponen memiliki kebutuhan pengelolaan yang berbeda. IaaS digunakan untuk menjaga kendali dan keamanan infrastruktur data inti, PaaS digunakan untuk mendukung pengembangan serta skalabilitas aplikasi verifikasi, sedangkan SaaS digunakan untuk meningkatkan efisiensi layanan pendukung. Dengan pembagian tersebut, sistem dapat berjalan lebih fleksibel, efisien, dan tetap memperhatikan kerahasiaan data penduduk.
+
  
 ---
