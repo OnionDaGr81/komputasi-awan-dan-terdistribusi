@@ -189,9 +189,29 @@ Menggabungkan **Hybrid Cloud** (Bagian 1) dengan pemetaan **IaaS di Private Clou
 
 ## 4. Perbandingan dengan Alternatif yang Ditolak
 
-> *TODO (Didit Septa Putra / Anggota 1): Bandingkan Hybrid Cloud dengan 1 alternatif yang ditolak (misalnya Public Cloud murni atau Private Cloud murni) beserta alasan penolakannya.*
-
----
+## 4. Perbandingan dengan Alternatif yang Ditolak: Public Cloud Murni
+ 
+**Alternatif yang ditolak:** menjalankan seluruh Sistem Data Kependudukan, termasuk database induk, di public cloud.
+ 
+**Yang membuat alternatif ini menarik.** Public cloud unggul pada rapid elasticity dan biaya berbasis pemakaian. Tidak perlu membangun kapasitas puncak sendiri, dan lonjakan akses bisa diserap dengan mudah. Kelemahan Public Cloud murni bukan pada skalabilitasnya, melainkan pada kendali.
+ 
+**Alasan penolakan:**
+ 
+1. **Kendali penuh negara tidak terpenuhi.** Studi kasus mensyaratkan data tidak boleh berada di infrastruktur yang tidak terkendali penuh oleh negara. Pada public cloud, perangkat fisik, jaringan, dan lapisan virtualisasi dikelola penyedia, sehingga negara bergantung pada kontrol keamanan dan kebijakan pihak lain untuk data seluruh warga.
+2. **Sifat data biometrik.** Biometrik tidak bisa direset seperti kata sandi. Jika bocor, dampaknya permanen bagi warga yang bersangkutan. Toleransi risiko untuk data ini jauh lebih rendah daripada data transaksi biasa, sehingga mempercayakan database induk pada lingkungan multi-tenant sulit dibenarkan.
+3. **Resource pooling lintas tenant.** Karakteristik resource pooling berarti infrastruktur dipakai bersama banyak pelanggan. Isolasi antar tenant bergantung pada penyedia, bukan pada negara. Untuk data kependudukan, ini risiko yang tidak bisa dikendalikan sendiri.
+4. **Yurisdiksi dan kewajiban regulasi.** UU PDP dan aturan penyelenggara sistem elektronik lingkup publik menuntut pengendali data tetap bertanggung jawab atas keamanan dan pengelolaan data. Menempatkan seluruh data pada penyedia yang tunduk pada yurisdiksi atau kebijakan di luar kendali negara memperumit pemenuhan kewajiban tersebut, termasuk saat ada permintaan akses oleh pihak ketiga. Pada rancangan Hybrid, risiko ini ditekan karena public cloud dibatasi pada region Indonesia dan seluruh kunci enkripsi dipegang di HSM milik negara di private cloud (lihat Risiko 1 pada bagian 3). Pada Public Cloud murni, mitigasi ini tidak bisa diterapkan karena database induk dan kuncinya sama-sama berada di penyedia.
+5. **Ketergantungan pada satu penyedia (vendor lock-in).** Memindahkan jutaan record biometrik antar penyedia mahal dan berisiko. Ketergantungan ini melemahkan posisi negara dalam hal biaya, kebijakan, dan keberlanjutan layanan. Pada Hybrid, ketergantungan pada penyedia public cloud hanya terbatas pada lapisan PaaS yang stateless, sehingga relatif mudah dipindahkan, sedangkan data induk tetap di infrastruktur negara.
+**Ringkasan perbandingan:**
+ 
+| Aspek | Hybrid Cloud (dipilih) | Public Cloud murni (ditolak) |
+|---|---|---|
+| Lokasi database induk NIK dan biometrik | Private cloud (IaaS) milik negara | Infrastruktur penyedia |
+| Kendali kunci enkripsi | HSM di private cloud negara | Bergantung pada penyedia |
+| Rapid elasticity saat pemilu/PPDB | Terpenuhi lewat PaaS di public cloud | Terpenuhi |
+| Dampak jika segmen publik bermasalah | Data inti tetap terisolasi | Seluruh sistem ikut terdampak |
+ 
+**Kesimpulan poin 4:** Public Cloud murni ditolak karena menukar kendali atas data paling sensitif dengan skalabilitas, padahal skalabilitas itu tetap bisa didapat lewat Hybrid tanpa menyerahkan database induk ke luar kendali negara.
 
 ## 5. Skenario Tandingan
 
